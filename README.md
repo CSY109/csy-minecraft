@@ -108,3 +108,5 @@ npm test
 也可以用环境变量 `TEST_BROWSER` 指定本机 Chrome / Edge 可执行文件，使用 `PLAYWRIGHT_MODULE` 指向已有的 Playwright 包。测试在独立的无头浏览器中运行实际 WebGL 页面，覆盖资源与合成、工具效率与掉落限制、放置消耗、两种方向的傀儡搭建、近战与远程攻击、傀儡守护、生存伤害、夜间生成、区块改动保留、暂停和物品搜索。截图写入 `test-results/`。
 
 专项检查：`node tests/world-worker-source.cjs` 检查后台代码隔离运行；`node tests/run-world-jobs.cjs` 检查后台生成、流体模型及异步改动保留；`node tests/profile-world.cjs` 输出同步区块生成、重建和物理更新的耗时。完整游戏测试还覆盖锁定鼠标时的视角跳变、侧面与斜下方开洞、支撑恢复，以及 `file://` 模式的后台线程运行。
+
+`node tests/run-mobile.cjs` 使用原生多点触控协议验证手机操作；`node tests/run-deployed.cjs` 直接检查已发布网站的电脑版、自动适配、资源加载、后台线程、背包与模式切换，以及手机多指移动、转动视角、放置火把、飞行和射箭。可用环境变量 `PLAY_URL` 指定待检查的网站。
