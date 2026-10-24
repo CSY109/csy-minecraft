@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>csy's Minecraft</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#263f2b">
+<meta name="description" content="csy's Minecraft — 打开即玩的方块世界，支持电脑与手机。">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:"Courier New",monospace;user-select:none;color:#fff}
+  canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+  #cross{position:fixed;left:50%;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;pointer-events:none;mix-blend-mode:difference}
+  #cross:before,#cross:after{content:"";position:absolute;background:#fff}
+  #cross:before{left:9px;top:0;width:2px;height:20px}
+  #cross:after{top:9px;left:0;height:2px;width:20px}
+  #hotbar{position:fixed;left:50%;bottom:8px;transform:translateX(-50%);display:flex;background:#0006;border:3px solid #222;padding:2px;gap:2px}
+  .slot{width:44px;height:44px;background:#8b8b8b88;border:3px solid #373737;box-sizing:border-box;display:flex;align-items:center;justify-content:center;position:relative}
+  .slot.sel{border-color:#fff;background:#bbb8}
+  .slot canvas{width:34px;height:34px;image-rendering:pixelated}
+  .slot i{position:absolute;left:2px;top:0;font:10px monospace;color:#fffc;font-style:normal}
+  #debug{position:fixed;left:8px;top:6px;font-size:13px;line-height:1.35;text-shadow:1px 1px #000;white-space:pre;display:none;background:#0004;padding:4px}
+  #toast{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);font-size:18px;text-shadow:2px 2px #000;opacity:0;transition:opacity .4s}
+  #uw{position:fixed;inset:0;background:rgba(20,50,150,.35);display:none;pointer-events:none}
+  #menu,#loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    background:linear-gradient(#0008,#000c),repeating-conic-gradient(#3b2a1a 0 25%,#2e2012 0 50%) 0 0/48px 48px}
+  #menu h1{font-size:64px;margin:0 0 10px;letter-spacing:4px;text-shadow:4px 4px #000,0 0 30px #5c5}
+  #menu label{font-size:14px;display:flex;gap:8px;align-items:center}
+  #menu input[type=text]{background:#000a;border:2px solid #aaa;color:#fff;padding:6px;font:inherit;width:200px}
+  button{background:#7c7c7c;border:3px solid #000;box-shadow:inset -3px -3px #555,inset 3px 3px #aaa;color:#fff;font:bold 18px "Courier New",monospace;padding:10px 40px;cursor:pointer;text-shadow:2px 2px #333;min-width:260px}
+  button:hover{background:#6f7fb8}
+  #help{font-size:12px;line-height:1.6;color:#ddd;text-align:center;max-width:620px}
+  #inv{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0008}
+  #invbox{background:#c6c6c6;border:4px solid #000;padding:12px;color:#333;max-width:560px}
+  #invbox h3{margin:0 0 8px;font-size:16px}
+  #invgrid{display:grid;grid-template-columns:repeat(9,44px);gap:2px}
+  #invgrid .slot{cursor:pointer;background:#8b8b8b}
+  #invgrid .slot:hover{background:#fff8}
+</style>
+<link rel="stylesheet" href="game.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="uw"></div>
+<div id="cross"></div>
+<div id="hotbar"></div>
+<div id="debug"></div>
+<div id="toast"></div>
+<div id="survivalHud"><canvas id="vitals" width="182" height="20" role="img" aria-label="生命与饥饿"></canvas><div id="heldName"></div></div>
+<div id="damage"></div>
+<div id="portalOverlay"></div>
+<div id="inv"><div id="invbox">
+  <div class="inventoryHead"><h3 id="invTitle">背包与合成</h3><button id="closeInv" aria-label="关闭背包">×</button></div>
+  <div class="inventoryTools"><div class="tabs"><button data-tab="all" class="active">全部</button><button data-tab="bag">物品</button><button data-tab="craft">合成</button></div><input id="invSearch" type="search" placeholder="搜索物品 / 配方" aria-label="搜索物品或配方"></div>
+  <div id="inventoryContent"><div id="invgrid"></div><div id="recipes"></div></div>
+  <details id="inventoryGuide"><summary>操作与合成帮助</summary><p id="invHint"></p><p>工具需要附近 4 格内有已放置的工作台；冶炼配方直接消耗煤炭。石镐可采铁，铁镐可采金和钻石，钻石镐可采黑曜石。等级不足时没有掉落。</p>
+  <details><summary>弓与爆炸箭</summary><p>手持弓按住右键蓄力，松开发射；按 R 切换普通箭 / 爆炸箭，也可手持弓打开背包，点击所需箭种。爆炸箭命中后在 5×5×5 范围内爆炸，造成固定 20 点伤害（10 颗心），近距离也会伤到自己；基岩、黑曜石与液体保留。</p><p>4 支普通箭 + 1 份火药 → 4 支爆炸箭。击败苦力怕可获得火药。创造物品栏可以直接选择爆炸箭，创造模式不消耗弹药。</p></details>
+  <details><summary>水流与下界传送门</summary><p>铁桶右键取水源，再右键倒水。沙子、沙砾失去支撑会下落。水接触熔岩源可生成黑曜石。</p><p>用黑曜石搭外宽 4、外高 5 的竖直门框，内部 2×3 留空，四个角可省略。手持打火石右键点燃门框内侧，站在紫色门中传送；生存模式需等待 4 秒。下界会生成返回门，熔岩会造成伤害，水在下界会蒸发。</p><p>打火石由 1 铁锭和 1 燧石合成，挖沙砾有机会获得燧石；铁桶由 3 铁锭在工作台附近制作。</p></details>
+  <details id="golemGuide"><summary>傀儡搭建</summary><div class="golemPatterns"><div><strong>铁傀儡</strong><pre>    南瓜
+铁块 铁块 铁块
+    铁块</pre></div><div><strong>雪傀儡</strong><pre>南瓜
+雪块
+雪块</pre></div></div><p>先搭身体，最后放雕刻南瓜。铁傀儡可沿 X / Z 两个方向搭建，下排两侧留空。南瓜在草地上，用锹挖积雪草方块可以获得雪块。</p></details></details>
+</div></div>
+<div id="death" hidden><h2>你倒下了</h2><p id="deathCause"></p><button id="respawn">重生</button></div>
+<div id="loading" style="display:none"><h2>正在生成世界…</h2></div>
+<div id="menu">
+  <div class="panorama" aria-hidden="true"></div>
+  <main class="titleMenu">
+  <h1 class="brand" aria-label="csy's Minecraft"><small>csy's</small><img src="assets/logo.svg" alt="Minecraft" width="740" height="150"></h1>
+  <div class="menuActions">
+  <button id="play">开始游戏</button>
+  <select id="mode" aria-label="游戏模式"><option value="survival">生存模式</option><option value="creative">创造模式</option></select>
+  <div class="menuSecondary"><button id="settingsButton">设置</button><button id="helpButton">操作</button></div>
+  </div></main>
+</div>
+<dialog id="settingsDialog" class="menuDialog"><div class="dialogHeading"><h2>设置</h2><button id="closeSettings" class="iconButton" aria-label="关闭设置">×</button></div>
+  <label>种子 <input id="seed" type="text" placeholder="留空随机"></label>
+  <label>渲染距离 <input id="rd" type="range" min="3" max="16" value="8"> <span id="rdv">8</span></label>
+  <label>音量 <input id="volume" type="range" min="0" max="100" value="65" aria-label="音量"></label>
+</dialog>
+<dialog id="helpDialog" class="menuDialog"><div class="dialogHeading"><h2>操作</h2><button id="closeHelp" class="iconButton" aria-label="关闭操作说明">×</button></div>
+  <div id="help"><div class="helpContent desktopHelp">
+    WASD 移动 · 空格 跳跃 · Shift 潜行 · Ctrl 疾跑<br>
+    按住左键 挖掘 / 攻击 · 右键 放置 / 食用 · 弓按住右键拉弓，松开发射，R 切换箭种<br>
+    滚轮或 1–9 切换物品 · Esc 暂停后可直接切换生存 / 创造模式<br>
+    E 背包与合成 · F3 调试 · Esc 暂停 · 创造模式双击空格飞行、T 加速时间<br>
+    飞行时空格上升，左 / 右 Shift 下降，松开悬停，落地后退出飞行。<br>
+    生存起步：采原木 → 合成木板、木棍、工作台 → 放工作台 → 制作工具。<br>
+    白天寻找动物与食物，夜晚小心僵尸、蜘蛛和苦力怕。搭建傀儡守护家园。
+  </div><div class="helpContent mobileHelp">左侧摇杆移动，滑动场景转动视角。<br>按住「挖掘」采集或攻击，按「使用」放置或食用。<br>弓按住「使用」拉弓，松开发射，「换箭」切换箭种。<br>「跳跃」上升，「潜行」下降；创造模式可切换飞行。<br>上方背包按钮打开物品与合成，暂停按钮切换模式。</div><p class="helpContent">火把：煤炭 + 木棍 → 4 个。荧石、火和熔岩也能照亮周围。打火石可点火，地狱岩上的火会持续燃烧。</p></div>
+</dialog>
+<div id="touchControls" aria-label="触控操作" hidden>
+  <div class="touchTop"><button id="touchBag" aria-label="背包与合成">▦</button><button id="touchPause" aria-label="暂停">Ⅱ</button><button id="touchFly" hidden>飞行</button><button id="touchAmmo" hidden>换箭</button></div>
+  <div id="joystick" role="button" aria-label="移动摇杆"><span></span></div>
+  <div class="touchActions"><button id="touchJump">跳跃</button><button id="touchSneak">潜行</button><button id="touchAttack">挖掘</button><button id="touchUse">使用</button></div>
+</div>
+<script src="js/util.js"></script>
+<script src="assets/classic-textures.js"></script>
+<script src="assets/classic-sounds.js"></script>
+<script src="js/blocks.js"></script>
+<script src="js/items.js"></script>
+<script src="js/textures.js"></script>
+<script src="js/lighting.js"></script>
+<script src="js/world.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/render.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/survival.js"></script>
+<script src="js/mobs.js"></script>
+<script src="js/mob-render.js"></script>
+<script src="js/feedback.js"></script>
+<script src="js/dimensions.js"></script>
+<script src="js/world-jobs.js"></script>
+<script src="js/main.js"></script>
+<script src="js/interface.js"></script>
+</body>
+</html>
