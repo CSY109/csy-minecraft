@@ -59,9 +59,6 @@ body.playing #menu .brand{width:min(460px,64vw);margin-bottom:0}
 #menu #play{background:#5b7348;min-height:48px}#menu button:hover{background:#80926d}#menu #play:hover{background:#75905b}
 #menu #mode{text-align:center;width:100%;appearance:auto;background:#465144;font-weight:400}
 .menuSecondary{display:grid;grid-template-columns:1fr 1fr;gap:10px}.menuSecondary button{font-size:14px!important}
-.devicePicker{display:flex;gap:4px;padding:3px;background:#17251bcc;border:1px solid #b0bca955;margin-top:-10px}
-#menu .devicePicker button{box-shadow:none;border:0;padding:8px 20px;background:transparent;color:#bdc8b5;font-size:13px;text-shadow:none}
-#menu .devicePicker button[aria-pressed=true]{background:#d1d5c6;color:#243021}
 .menuDialog{width:min(380px,88vw);max-height:80dvh;overflow:auto;border:2px solid #101911;background:#303b2f;color:#f2f0e5;box-shadow:inset 0 2px #8b9880,0 16px 70px #0009;padding:22px;font:14px system-ui,sans-serif;touch-action:pan-y}
 .menuDialog::backdrop{background:#051109aa;backdrop-filter:blur(5px)}
 .dialogHeading{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}.dialogHeading h2{font:600 20px system-ui;margin:0}
@@ -71,15 +68,33 @@ body.playing #menu .brand{width:min(460px,64vw);margin-bottom:0}
 .menuDialog input[type=range]{width:150px;accent-color:#b6c399}.menuDialog #help{font:14px/2 system-ui;text-align:left;color:#e3e6db}
 .mobileHelp{display:none}.mobile .mobileHelp{display:block}.mobile .desktopHelp{display:none}
 #touchControls{position:fixed;inset:0;z-index:4;pointer-events:none;touch-action:none}
-#touchControls button,#joystick{pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent}
-#touchControls button{min-width:0;padding:0;border:2px solid #d5ded57a;background:#18261d99;box-shadow:inset 0 1px #fff3;font:600 14px system-ui;color:white;text-shadow:1px 1px #000;width:56px;height:48px;border-radius:4px}
-#touchControls button:active,#touchControls button.active{background:#6a875dcc}
-.touchTop{position:absolute;top:calc(12px + env(safe-area-inset-top));left:calc(12px + env(safe-area-inset-left));display:flex;gap:8px}
-#touchBag,#touchPause{font:25px monospace!important;width:44px!important;height:40px!important}
-#joystick{position:absolute;left:calc(24px + env(safe-area-inset-left));bottom:calc(92px + env(safe-area-inset-bottom));width:100px;height:100px;border:2px solid #e4eee44d;border-radius:50%;background:#17231b66;display:grid;place-items:center}
-#joystick span{display:block;width:42px;height:42px;border:2px solid #dae5d477;background:#9bab9680;border-radius:50%;pointer-events:none}
-.touchActions{position:absolute;right:calc(20px + env(safe-area-inset-right));bottom:calc(85px + env(safe-area-inset-bottom));display:grid;grid-template-columns:56px 56px;gap:10px}
+#touchControls button,#dpad{pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent}
+#touchControls button{min-width:0;padding:0;border:2px solid #29302db3;background:#a1a8a07d;box-shadow:inset 2px 2px #e5e9df8c,inset -3px -3px #434a448c,0 0 0 1px #dce2db38;color:#273429;width:var(--touch-key);height:var(--touch-key);border-radius:0;display:grid;place-items:center;text-shadow:none;box-sizing:border-box}
+#touchControls button.held,#touchControls button.active{background:#dce0d1b3;box-shadow:inset 2px 2px #4e594e99,inset -2px -2px #fff5}
+#touchControls svg{width:58%;height:58%;fill:currentColor;pointer-events:none;shape-rendering:crispEdges}
+.mobile{--touch-key:clamp(44px,13.5dvh,66px)}
+.touchTop{position:absolute;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;gap:5px}
+#touchControls .touchTop button{width:38px;height:36px;color:#dce2d6;background:#38483b80;box-shadow:inset 1px 1px #e5e9df55,inset -2px -2px #161c1666}
+#dpad{position:absolute;left:calc(24px + env(safe-area-inset-left));bottom:calc(54px + env(safe-area-inset-bottom));display:grid;grid-template:repeat(3,var(--touch-key))/repeat(3,var(--touch-key));gap:2px}
+#touchForward{grid-area:1/2}#touchLeft{grid-area:2/1}#touchSneak{grid-area:2/2}#touchRight{grid-area:2/3}#touchBackward{grid-area:3/2}
+#touchControls .direction svg{width:70%;height:70%;transform:translateY(12%)}
+#touchControls .left svg{transform:rotate(-90deg) translateY(12%)}#touchControls .right svg{transform:rotate(90deg) translateY(12%)}#touchControls .down svg{transform:rotate(180deg) translateY(12%)}
+.touchActions{position:absolute;right:calc(24px + env(safe-area-inset-right));bottom:calc(72px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(2,var(--touch-key));gap:10px}
+#touchControls #touchJump{grid-area:2/1/3/3;justify-self:center;width:calc(var(--touch-key) * 1.2);height:calc(var(--touch-key) * 1.2)}
+#touchControls #touchBag{position:absolute;bottom:calc(8px + env(safe-area-inset-bottom));left:calc(50% + 94px * var(--gui-scale));width:calc(22px * var(--gui-scale));height:calc(22px * var(--gui-scale));background:#858b82b3}
+#touchHealth,#touchHunger{position:absolute;top:calc(6px + env(safe-area-inset-top));width:160px;height:40px;image-rendering:pixelated;pointer-events:none}
+#touchHealth{left:calc(14px + env(safe-area-inset-left))}#touchHunger{right:calc(14px + env(safe-area-inset-right))}
 .mobile #hotbar{bottom:calc(8px + env(safe-area-inset-bottom));z-index:5}.mobile #survivalHud{bottom:calc(10px + 22px * var(--gui-scale) + env(safe-area-inset-bottom))}
+.mobile #vitals{visibility:hidden}.mobile #heldName{bottom:6px}.mobile #cross{transform:scale(.75)}
 .mobile #invbox{max-height:94dvh}.mobile #inventoryContent{touch-action:pan-y}.mobile #inventoryGuide{touch-action:pan-y}.mobile #heldName{font-size:12px}
+#fireOverlay{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;image-rendering:pixelated}
+#cross,#hotbar,#survivalHud{z-index:2}#damage,#portalOverlay,#uw{z-index:1}
+#rotateHint{position:fixed;inset:0;z-index:50;background:#162019f5;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;font:16px system-ui;color:#e0e4d8;text-align:center}
+#rotateHint svg{width:90px;height:90px;image-rendering:pixelated}
+.menuDialog output{min-width:40px;text-align:right;font:12px monospace}.menuDialog label:has(output) input{width:120px}
+body:not(.mobile) #cross{width:16px;height:16px;margin:-8px 0 0 -8px}body:not(.mobile) #cross:before{left:7px;height:16px}body:not(.mobile) #cross:after{top:7px;width:16px}
+body:not(.mobile) #hotbar .slot:after{content:attr(data-key);position:absolute;top:1px;left:2px;font:9px monospace;color:#ddd8;text-shadow:1px 1px #000;pointer-events:none}
+@media(hover:hover){#hotbar .slot{cursor:pointer}#hotbar .slot:hover{background:#fff2}}
 @media(max-width:600px){.titleMenu{gap:20px}#menu .brand{width:min(600px,91vw);margin-bottom:25px}.brand small{font-size:14px}.menuActions{width:min(320px,82vw)}.menuDialog{padding:18px}}
-@media(max-height:500px){.titleMenu{gap:12px;padding:14px 0}#menu .brand{width:min(470px,62vw);margin-bottom:2px}.brand small{font-size:12px;margin-bottom:4px}.menuActions{gap:6px;width:280px}#menu button,#menu select{padding:8px 12px;min-height:0}.devicePicker{margin-top:0}#menu .devicePicker button{padding:5px 18px}.touchActions{bottom:68px}#joystick{bottom:70px;width:88px;height:88px}}
+@media(max-height:500px){.titleMenu{gap:12px;padding:14px 0}#menu .brand{width:min(470px,62vw);margin-bottom:2px}.brand small{font-size:12px;margin-bottom:4px}.menuActions{gap:6px;width:280px}#menu button,#menu select{padding:8px 12px;min-height:0}}
+@media(max-width:740px) and (orientation:landscape){.mobile{--gui-scale:1.75;--touch-key:44px}#dpad{left:calc(12px + env(safe-area-inset-left));bottom:52px}.touchActions{right:calc(12px + env(safe-area-inset-right));bottom:65px}#touchHealth,#touchHunger{width:144px;height:36px}}

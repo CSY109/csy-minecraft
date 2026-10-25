@@ -167,3 +167,40 @@ function drawMobs(matrix, eye, light, fog, near, far) {
   gl.bindVertexArray(mobVAO); gl.bindBuffer(gl.ARRAY_BUFFER, mobVBO); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.DYNAMIC_DRAW); gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 7);
   gl.bindTexture(gl.TEXTURE_2D, atlasTex);
 }
+
+const progEntityFire = program(`
+layout(location=0) in vec3 aPos; layout(location=1) in vec2 aUV;
+uniform mat4 uVP; uniform vec3 uCam; out vec2 vUV; out float vDist;
+void main(){vUV=aUV;vDist=length(aPos-uCam);gl_Position=uVP*vec4(aPos,1.0);}`, `
+in vec2 vUV; in float vDist; uniform sampler2D uTex; uniform vec3 uFog; uniform vec2 uFogRange; out vec4 o;
+void main(){vec4 c=texture(uTex,vUV);if(c.a<0.3)discard;o=vec4(mix(c.rgb,uFog,smoothstep(uFogRange.x,uFogRange.y,vDist)),c.a*0.9);}`,
+['uVP', 'uCam', 'uTex', 'uFog', 'uFogRange']);
+const entityFireVAO = gl.createVertexArray(), entityFireVBO = gl.createBuffer();
+gl.bindVertexArray(entityFireVAO); gl.bindBuffer(gl.ARRAY_BUFFER, entityFireVBO);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 20, 0);
+gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 20, 12); gl.bindVertexArray(null);
+function drawBurningMobs(matrix, eye, fog, near, far) {
+  const vertices = [], cy = Math.cos(player.yaw), sy = Math.sin(player.yaw);
+  for (const m of mobs) {
+    if (!(m.burnTime > 0) || Math.hypot(m.x - eye[0], m.z - eye[2]) > far) continue;
+    const d = MOB_TYPES[m.type], tile = T.FIRE + (Math.floor(gameTime * 8) + m.id) % 4;
+    const width = d.width * 1.45, height = width * 1.35;
+    for (let y = 0, layer = 0; y < d.height; y += height * 0.48, layer++) {
+      const scale = 1 - y / d.height * 0.25;
+      for (const side of [-1, 1]) for (const k of [0, 1, 2, 0, 2, 3]) {
+        const u = CA[k], v = CB[k], x = (u - 0.5) * width * scale, z = side * d.width * 0.38;
+        vertices.push(m.x + x * cy + z * sy, m.y + y + v * height, m.z - x * sy + z * cy,
+          ((tile & 15) + 0.002 + (layer % 2 ? 1 - u : u) * 0.996) / 16,
+          ((tile >> 4) + 0.002 + (1 - v) * 0.996) / 16);
+      }
+    }
+  }
+  if (!vertices.length) return;
+  gl.useProgram(progEntityFire); gl.uniformMatrix4fv(progEntityFire.u.uVP, false, matrix); gl.uniform3fv(progEntityFire.u.uCam, eye);
+  gl.uniform3fv(progEntityFire.u.uFog, fog); gl.uniform2f(progEntityFire.u.uFogRange, near, far); gl.uniform1i(progEntityFire.u.uTex, 0);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, atlasTex);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.CULL_FACE); gl.depthMask(false);
+  gl.bindVertexArray(entityFireVAO); gl.bindBuffer(gl.ARRAY_BUFFER, entityFireVBO);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.DYNAMIC_DRAW); gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 5);
+  gl.depthMask(true); gl.enable(gl.CULL_FACE);
+}

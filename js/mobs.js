@@ -16,6 +16,7 @@ function spawnMob(type, x, y, z) {
   const d = MOB_TYPES[type]; if (!d || mobs.length >= 48) return null;
   const mob = { type, x, y, z, hp: d.hp, vy: 0, yaw: Math.random() * Math.PI * 2, turn: 0,
     attack: 0, hurt: 0, flee: 0, sound: 4 + Math.random() * 10, walk: 0, grounded: false, fuse: 0, id: ++mobSerial };
+  clearBurning(mob); mob.fallTop = y; mob.hazardClock = 0;
   mobs.push(mob); return mob;
 }
 function mobCollides(m, x, y, z) {
@@ -242,7 +243,13 @@ function updateMobs(dt) {
       m.y += delta;
     }
     m.walk += speed * dt * 6;
-    if (m.type === 'zombie' && sky.d > 0.7 && m.y + d.height >= world.heightAt(Math.floor(m.x), Math.floor(m.z)) && m.attack < -1) { damageMob(m, 1); m.attack = 0; }
+    const env = entityEnvironment(m.x, m.y, m.z, d.width, d.height);
+    if (m.type === 'zombie' && sky.d > 0.7 && m.y + d.height >= world.heightAt(Math.floor(m.x), Math.floor(m.z)) && !env.water)
+      m.burnTime = Math.max(m.burnTime, 8);
+    updateEntityBurning(m, dt, env, amount => damageMob(m, amount));
+    trackEntityFall(m, m.y, m.grounded, env.water || env.lava, amount => damageMob(m, amount));
+    m.hazardClock -= dt;
+    if (env.magma && m.hazardClock <= 0) { damageMob(m, 1); m.hazardClock = 1; }
   }
   updateProjectiles(dt);
 }

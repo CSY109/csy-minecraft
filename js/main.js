@@ -31,6 +31,7 @@ function buildHotbar() {
   slotEls.length = 0;
   for (let i = 0; i < 9; i++) {
     const d = document.createElement('div'); d.className = 'slot';
+    d.dataset.key = i + 1; d.setAttribute('role', 'button');
     hb.appendChild(d); slotEls.push(d);
     d.onclick = () => selectSlot(i);
   }
@@ -337,7 +338,7 @@ function drawWorld(t) {
   const W = canvas.width, Hh = canvas.height;
   gl.viewport(0, 0, W, Hh);
   const eye = eyePos();
-  const fov = 70 * Math.PI / 180 * player.fovMul;
+  const fov = Number($('fov').value) * Math.PI / 180 * player.fovMul;
   const aspect = W / Hh;
   M4.perspective(proj, fov, aspect, 0.06, 4000);
   M4.identity(view);
@@ -400,6 +401,7 @@ function drawWorld(t) {
 
   drawFallingBlocks();
   drawMobs(vp, eye, dayL, fogC, fogN, fogF);
+  drawBurningMobs(vp, eye, fogC, fogN, fogF);
 
   // selection outline
   if (target) {
@@ -454,6 +456,7 @@ function drawWorld(t) {
   gl.disable(gl.BLEND);
 
   drawHand(dayL, tint, t);
+  drawPlayerFire();
 }
 
 function applyBowHandPose(matrix, bobX = 0, bobY = 0) {
@@ -587,8 +590,9 @@ function applyMouseLook(e) {
   if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
   // Discard cursor-warp samples; do not clamp or smooth ordinary mouse motion.
   if (Math.abs(dx) > Math.max(240, window.innerWidth / 2) || Math.abs(dy) > Math.max(240, window.innerHeight / 2)) return;
-  player.yaw -= dx * 0.0022;
-  player.pitch = clamp(player.pitch - dy * 0.0022, -1.5533, 1.5533);
+  const sensitivity = Number($('sensitivity').value) / 100;
+  player.yaw -= dx * 0.0022 * sensitivity;
+  player.pitch = clamp(player.pitch - dy * 0.0022 * sensitivity, -1.5533, 1.5533);
 }
 document.addEventListener('keydown', (e) => {
   if (!started) return;
@@ -649,6 +653,7 @@ document.addEventListener('pointerlockchange', () => {
 
 $('rd').oninput = () => { $('rdv').textContent = $('rd').value; };
 $('play').onclick = () => {
+  requestMobileLandscape();
   initAudio();
   if (started) { renderDist = parseInt($('rd').value); lastCx = 1e9; resumeGame(); return; }
   $('menu').style.display = 'none'; $('loading').style.display = 'flex';

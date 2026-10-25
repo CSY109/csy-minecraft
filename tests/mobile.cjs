@@ -12,13 +12,24 @@ module.exports = async (browser, url) => {
     assert(await page.title() === "csy's Minecraft", 'game title');
     assert(!await page.locator('#seed').isVisible() && !await page.locator('#help').isVisible(), 'cover hides settings and instructions');
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'portrait cover fits without overflow');
-    await page.screenshot({ path:path.join(__dirname,'..','test-results','cover-mobile.png') });
+    assert(await page.locator('#rotateHint').isVisible(), 'portrait phone requests landscape');
     await page.setViewportSize({ width:844, height:390 });
     await page.locator('#settingsButton').click(); await page.locator('#seed').fill('12345'); await page.locator('#rd').fill('3'); await page.locator('#closeSettings').click();
     await page.locator('#play').tap();
     await page.waitForFunction(() => started && hasGameFocus() && !$('touchControls').hidden);
     assert(await page.evaluate(() => isTouchMode() && !document.pointerLockElement), 'phone starts without pointer lock');
-    passed('minimal phone cover fits portrait and starts a touch game without mouse lock');
+    assert(!await page.locator('#rotateHint').isVisible(), 'landscape hides rotation prompt');
+    for (const size of [{width:844,height:390},{width:667,height:375}]) {
+      await page.setViewportSize(size);
+      assert(await page.evaluate(() => {
+        const ids = ['dpad','touchJump','touchAttack','touchUse','hotbar','touchBag','touchHealth','touchHunger','touchPause'];
+        const rects = ids.map(id => ({id, r:$(id).getBoundingClientRect()}));
+        return rects.every(({r}) => r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight) &&
+          rects.every((a,i) => rects.slice(i+1).every(b => Math.min(a.r.right,b.r.right)-Math.max(a.r.left,b.r.left)<=0 || Math.min(a.r.bottom,b.r.bottom)-Math.max(a.r.top,b.r.top)<=0));
+      }), 'landscape controls fit and do not overlap at '+size.width);
+    }
+    await page.setViewportSize({width:844,height:390});
+    passed('portrait prompts rotation; landscape pixel controls fit both large and small phones without overlap');
     const cdp = await context.newCDPSession(page);
     const touch = (type, points) => cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points.map(([x,y,id=1])=>({x,y,id}))});
     const center = async selector => { const b=await page.locator(selector).boundingBox(); return [b.x+b.width/2,b.y+b.height/2,1]; };
@@ -29,15 +40,17 @@ module.exports = async (browser, url) => {
       }
       resetDimensions(); player.p=[0.5,11.01,0.5];player.v=[0,0,0];player.yaw=player.pitch=0;vitals.fallTop=11.01;
     });
-    const stick=await center('#joystick'), initial=await page.evaluate(()=>({p:player.p.slice(),yaw:player.yaw}));
-    await touch('touchStart',[stick]); await touch('touchMove',[[stick[0],stick[1]-35,1]]);
+    const forward=await center('#touchForward'), initial=await page.evaluate(()=>({p:player.p.slice(),yaw:player.yaw}));
+    await touch('touchStart',[forward]);
     await page.waitForFunction(p=>Math.hypot(player.p[0]-p[0],player.p[2]-p[2])>0.35,initial.p);
-    await touch('touchStart',[[stick[0],stick[1]-35,1],[450,140,2]]);
-    await touch('touchMove',[[stick[0],stick[1]-35,1],[510,150,2]]);
+    const right=(await center('#touchRight'));right[2]=3;
+    await touch('touchStart',[forward,[450,140,2],right]);
+    await touch('touchMove',[forward,[510,150,2],right]);
     await page.waitForFunction(yaw=>Math.abs(player.yaw-yaw)>0.1 && touchMove.z>0.5,initial.yaw,{timeout:5000});
+    assert(await page.evaluate(()=>touchMove.x===1&&touchMove.z===1),'two directions support diagonal walking while looking');
     await touch('touchEnd',[]);
     await page.waitForFunction(()=>touchMove.x===0&&touchMove.z===0);
-    passed('native multi-touch moves with the joystick while independently rotating the camera');
+    passed('native multi-touch holds two direction keys while independently rotating the camera');
 
     await page.locator('#touchPause').tap();
     await page.waitForFunction(()=>paused&&$('menu').style.display==='flex',null,{timeout:3000});
@@ -69,7 +82,7 @@ module.exports = async (browser, url) => {
     passed('phone places torches, charges and fires explosive arrows, and safely pauses held actions');
     return results;
   } catch(error) {
-    console.error('MOBILE STATE',await page.evaluate(()=>({paused,invOpen,focus:hasGameFocus(),mode:deviceMode,menu:$('menu').style.display,look:lookPointer,stick:stickPointer,events:window.touchEvents,visual:{width:visualViewport.width,scale:visualViewport.scale}})));
+    console.error('MOBILE STATE',await page.evaluate(()=>({paused,invOpen,focus:hasGameFocus(),mode:deviceMode,menu:$('menu').style.display,look:lookPointer,pad:[...dpadPointers],visual:{width:visualViewport.width,scale:visualViewport.scale}})));
     await page.screenshot({path:path.join(__dirname,'..','test-results','mobile-failure.png')});throw error;
   } finally { await context.close(); }
 };

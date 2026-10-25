@@ -29,7 +29,29 @@ function drawSurvivalHUD() {
     if (hunger > i * 2) sprite(hunger >= i * 2 + 2 ? 52 : 61, 27, fx, 11);
     if (player.eyeWater || vitals.air < 10) sprite(i < Math.ceil(vitals.air) ? 16 : 25, 18, fx, 0);
   }
+  for (const [id, sourceX] of [['touchHealth', 0], ['touchHunger', 102]]) {
+    const out = $(id), ctx = out.getContext('2d');
+    ctx.clearRect(0, 0, out.width, out.height); ctx.drawImage(cv, sourceX, 0, 80, 20, 0, 0, 80, 20);
+  }
   cv.setAttribute('aria-label', `生命 ${health}/20，饥饿 ${hunger}/20，氧气 ${Math.ceil(vitals.air)}/10`);
+}
+let fireOverlayStamp = '';
+function drawPlayerFire() {
+  const cv = $('fireOverlay'), burning = isSurvival() && !dead && vitals.burnTime > 0;
+  cv.hidden = !burning;
+  if (!burning) { fireOverlayStamp = ''; return; }
+  const width = Math.round(180 * innerWidth / innerHeight), frame = Math.floor(gameTime * 8) % 4;
+  const stamp = width + ':' + frame;
+  if (stamp === fireOverlayStamp) return; fireOverlayStamp = stamp;
+  cv.width = width; cv.height = 180;
+  const c = cv.getContext('2d'), img = textureImages.block_fire_layer_0;
+  c.imageSmoothingEnabled = false; c.globalAlpha = 0.82;
+  const sourceY = frame * 16 * Math.max(1, Math.floor(img.height / 64));
+  // Two classic fire sheets climb the edges; the crosshair stays unobstructed.
+  for (const side of [-1, 1]) {
+    c.save(); c.translate(width / 2 + side * width * 0.4, 190); c.rotate(side * 0.16);
+    c.drawImage(img, 0, sourceY, 16, 16, -width * 0.21, -125, width * 0.42, 135); c.restore();
+  }
 }
 let heldNameTimer = 0;
 function showHeldName(id) {

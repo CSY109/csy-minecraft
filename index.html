@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#263f2b">
 <meta name="description" content="csy's Minecraft — 打开即玩的方块世界，支持电脑与手机。">
+<meta name="game-version" content="20261025-landscape-fire">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:"Courier New",monospace;user-select:none;color:#fff}
@@ -37,7 +38,7 @@
   #invgrid .slot{cursor:pointer;background:#8b8b8b}
   #invgrid .slot:hover{background:#fff8}
 </style>
-<link rel="stylesheet" href="game.css">
+<link rel="stylesheet" href="game.css?v=20261025-landscape-fire">
 </head>
 <body>
 <canvas id="c"></canvas>
@@ -48,6 +49,7 @@
 <div id="toast"></div>
 <div id="survivalHud"><canvas id="vitals" width="182" height="20" role="img" aria-label="生命与饥饿"></canvas><div id="heldName"></div></div>
 <div id="damage"></div>
+<canvas id="fireOverlay" hidden aria-hidden="true"></canvas>
 <div id="portalOverlay"></div>
 <div id="inv"><div id="invbox">
   <div class="inventoryHead"><h3 id="invTitle">背包与合成</h3><button id="closeInv" aria-label="关闭背包">×</button></div>
@@ -78,6 +80,8 @@
   <label>种子 <input id="seed" type="text" placeholder="留空随机"></label>
   <label>渲染距离 <input id="rd" type="range" min="3" max="16" value="8"> <span id="rdv">8</span></label>
   <label>音量 <input id="volume" type="range" min="0" max="100" value="65" aria-label="音量"></label>
+  <label>视野 <input id="fov" type="range" min="60" max="100" value="70" aria-label="视野"> <output id="fovValue">70°</output></label>
+  <label>视角灵敏度 <input id="sensitivity" type="range" min="25" max="200" value="100" aria-label="视角灵敏度"> <output id="sensitivityValue">100%</output></label>
 </dialog>
 <dialog id="helpDialog" class="menuDialog"><div class="dialogHeading"><h2>操作</h2><button id="closeHelp" class="iconButton" aria-label="关闭操作说明">×</button></div>
   <div id="help"><div class="helpContent desktopHelp">
@@ -88,13 +92,26 @@
     飞行时空格上升，左 / 右 Shift 下降，松开悬停，落地后退出飞行。<br>
     生存起步：采原木 → 合成木板、木棍、工作台 → 放工作台 → 制作工具。<br>
     白天寻找动物与食物，夜晚小心僵尸、蜘蛛和苦力怕。搭建傀儡守护家园。
-  </div><div class="helpContent mobileHelp">左侧摇杆移动，滑动场景转动视角。<br>按住「挖掘」采集或攻击，按「使用」放置或食用。<br>弓按住「使用」拉弓，松开发射，「换箭」切换箭种。<br>「跳跃」上升，「潜行」下降；创造模式可切换飞行。<br>上方背包按钮打开物品与合成，暂停按钮切换模式。</div><p class="helpContent">火把：煤炭 + 木棍 → 4 个。荧石、火和熔岩也能照亮周围。打火石可点火，地狱岩上的火会持续燃烧。</p></div>
+  </div><div class="helpContent mobileHelp">横屏游玩，左侧十字键移动，按住两键可斜走；滑动场景转动视角。<br>十字键中间为潜行，右侧向上箭头为跳跃。<br>镐图标：按住挖掘或攻击；方块图标：放置或使用。弓按住方块键拉弓，松开发射。<br>快捷栏旁「…」打开背包，上方暂停键切换模式。创造模式可用飞行键，飞行时跳跃上升、潜行下降。</div><p class="helpContent">火把：煤炭 + 木棍 → 4 个。荧石、火和熔岩也能照亮周围。打火石可点火，地狱岩上的火会持续燃烧。生存中接触火或熔岩会着火受伤，入水灭火；从超过 3 格的高度落地会摔伤。</p></div>
 </dialog>
 <div id="touchControls" aria-label="触控操作" hidden>
-  <div class="touchTop"><button id="touchBag" aria-label="背包与合成">▦</button><button id="touchPause" aria-label="暂停">Ⅱ</button><button id="touchFly" hidden>飞行</button><button id="touchAmmo" hidden>换箭</button></div>
-  <div id="joystick" role="button" aria-label="移动摇杆"><span></span></div>
-  <div class="touchActions"><button id="touchJump">跳跃</button><button id="touchSneak">潜行</button><button id="touchAttack">挖掘</button><button id="touchUse">使用</button></div>
+  <canvas id="touchHealth" width="80" height="20" aria-hidden="true"></canvas><canvas id="touchHunger" width="80" height="20" aria-hidden="true"></canvas>
+  <div class="touchTop"><button id="touchPause" aria-label="暂停" title="暂停"><svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button><button id="touchFly" aria-label="切换飞行" title="飞行" hidden><svg viewBox="0 0 24 24"><path d="M11 2h2v14h-2zM7 6h2V4h6v2h2v2h-4V6h-2v2H7zM3 17h6v2h6v-2h6v3h-4v2H7v-2H3z"/></svg></button><button id="touchAmmo" aria-label="切换箭种" title="换箭" hidden><svg viewBox="0 0 24 24"><path d="M4 6h12V3l5 5-5 5v-3H4zM20 18H8v3l-5-5 5-5v3h12z"/></svg></button></div>
+  <div id="dpad" aria-label="移动方向">
+    <button id="touchForward" class="direction up" aria-label="前进"><svg viewBox="0 0 24 24"><path d="M10 4h4v3h3v3h3v3H4v-3h3V7h3z"/></svg></button>
+    <button id="touchLeft" class="direction left" aria-label="左移"><svg viewBox="0 0 24 24"><path d="M10 4h4v3h3v3h3v3H4v-3h3V7h3z"/></svg></button>
+    <button id="touchSneak" aria-label="潜行"><svg viewBox="0 0 24 24"><path d="M7 5h10v4H7zM10 9h4v4h5v3h-5v3h-4v-3H5v-3h5z"/></svg></button>
+    <button id="touchRight" class="direction right" aria-label="右移"><svg viewBox="0 0 24 24"><path d="M10 4h4v3h3v3h3v3H4v-3h3V7h3z"/></svg></button>
+    <button id="touchBackward" class="direction down" aria-label="后退"><svg viewBox="0 0 24 24"><path d="M10 4h4v3h3v3h3v3H4v-3h3V7h3z"/></svg></button>
+  </div>
+  <div class="touchActions">
+    <button id="touchAttack" aria-label="挖掘或攻击" title="挖掘 / 攻击"><svg viewBox="0 0 24 24"><path d="M3 3h12v3h3v3h3v6h-3v-3h-3V9h-3V6H3zM10 8h4v4h-3v3H8v3H5v3H2v-4h3v-3h3v-3h2z"/></svg></button>
+    <button id="touchUse" aria-label="使用或放置" title="使用 / 放置"><svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" d="m12 3 9 5v10l-9 5-9-5V8zM3 8l9 5 9-5M12 13v10M7 5l9 5"/></svg></button>
+    <button id="touchJump" aria-label="跳跃" title="跳跃"><svg viewBox="0 0 24 24"><path d="M10 3h4v3h3v3h3v3h-6v6h-4v-6H4V9h3V6h3zM6 21h12v2H6z"/></svg></button>
+  </div>
+  <button id="touchBag" aria-label="背包与合成" title="背包与合成"><svg viewBox="0 0 24 24"><path d="M3 10h4v4H3zM10 10h4v4h-4zM17 10h4v4h-4z"/></svg></button>
 </div>
+<div id="rotateHint" role="status" hidden><svg viewBox="0 0 64 64" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" d="M15 19h38v25H15zM7 27V12h15M7 12l9 9M57 39v15H42M57 54l-9-9"/></svg><span>旋转手机，横屏游玩</span></div>
 <script src="js/util.js"></script>
 <script src="assets/classic-textures.js"></script>
 <script src="assets/classic-sounds.js"></script>
@@ -106,13 +123,14 @@
 <script src="js/physics.js"></script>
 <script src="js/render.js"></script>
 <script src="js/audio.js"></script>
-<script src="js/survival.js"></script>
-<script src="js/mobs.js"></script>
-<script src="js/mob-render.js"></script>
-<script src="js/feedback.js"></script>
+<script src="js/hazards.js?v=20261025-landscape-fire"></script>
+<script src="js/survival.js?v=20261025-landscape-fire"></script>
+<script src="js/mobs.js?v=20261025-landscape-fire"></script>
+<script src="js/mob-render.js?v=20261025-landscape-fire"></script>
+<script src="js/feedback.js?v=20261025-landscape-fire"></script>
 <script src="js/dimensions.js"></script>
 <script src="js/world-jobs.js"></script>
-<script src="js/main.js"></script>
-<script src="js/interface.js"></script>
+<script src="js/main.js?v=20261025-landscape-fire"></script>
+<script src="js/interface.js?v=20261025-landscape-fire"></script>
 </body>
 </html>

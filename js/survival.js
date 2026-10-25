@@ -43,6 +43,7 @@ function switchGameMode(next) {
   if (isSurvival()) player.fly = false;
   player.v = [0, 0, 0]; player.sprint = player.sneak = false;
   vitals.fallTop = player.p[1]; timeScale = 1; lastSpace = 0;
+  clearBurning(vitals); resetTouchInput();
   inventoryStamp = hudStamp = ''; refreshHotbar(); updateHUD();
   if (invOpen) renderInventory(true);
 }
@@ -85,12 +86,13 @@ function releaseBow() {
 function resetVitals() {
   Object.assign(vitals, { health: 20, hunger: 20, air: 10, invulnerable: 0, regen: 0, hazard: 0, foodClock: 0 });
   dead = false; hudStamp = ''; $('death').hidden = true;
+  clearBurning(vitals); vitals.fallTop = player.p[1];
   $('damage').style.opacity = 0;
 }
-function damagePlayer(amount, cause = '受伤') {
+function damagePlayer(amount, cause = '受伤', cooldown = 0.75) {
   if (!isSurvival() || dead || vitals.invulnerable > 0 || amount <= 0) return;
-  vitals.health = Math.max(0, vitals.health - amount); vitals.invulnerable = 0.75;
-  gameSound(cause === '溺水' ? 'drown' : cause === '熔岩' || cause === '岩浆块' ? 'burn' : 'hurt'); $('damage').style.opacity = 0.65;
+  vitals.health = Math.max(0, vitals.health - amount); vitals.invulnerable = cooldown;
+  gameSound(cause === '溺水' ? 'drown' : ['熔岩', '岩浆块', '火焰', '燃烧'].includes(cause) ? 'burn' : 'hurt'); $('damage').style.opacity = 0.65;
   if (vitals.health <= 0) {
     dead = true; mouseL = mouseR = false; resetMining(); cancelBow();
     $('deathCause').textContent = cause + '。背包物品保留，重生回到出生点。';
@@ -110,13 +112,11 @@ function respawnPlayer() {
 function updateVitals(dt) {
   vitals.invulnerable = Math.max(0, vitals.invulnerable - dt);
   $('damage').style.opacity = Math.max(0, Number($('damage').style.opacity || 0) - dt * 2);
-  if (!isSurvival() || dead) return;
-  if (player.inWater) vitals.fallTop = player.p[1];
-  else if (player.onGround) {
-    const fall = vitals.fallTop - player.p[1];
-    if (fall > 3.5) damagePlayer(Math.floor(fall - 3), '摔落');
-    vitals.fallTop = player.p[1];
-  } else vitals.fallTop = Math.max(vitals.fallTop, player.p[1]);
+  if (!isSurvival() || dead) { clearBurning(vitals); return; }
+  const env = entityEnvironment(...player.p, HW * 2, PH);
+  updateEntityBurning(vitals, dt, env, (amount, cause) => damagePlayer(amount, cause, 0.45));
+  trackEntityFall(vitals, player.p[1], player.onGround, env.water || env.lava || player.fly, damagePlayer);
+  if (dead) return;
   if (player.eyeWater) vitals.air = Math.max(0, vitals.air - dt); else vitals.air = Math.min(10, vitals.air + dt * 3);
   vitals.foodClock += dt * (player.sprint ? 2.5 : 1);
   if (vitals.foodClock >= 24) { vitals.hunger = Math.max(0, vitals.hunger - 1); vitals.foodClock = 0; }
@@ -131,9 +131,7 @@ function updateVitals(dt) {
     vitals.hazard = 0;
     if (vitals.air === 0) damagePlayer(2, '溺水');
     const x = Math.floor(player.p[0]), y = Math.floor(player.p[1]), z = Math.floor(player.p[2]);
-    if (world.getBlock(x, y, z) === B.LAVA || world.getBlock(x, y + 1, z) === B.LAVA) damagePlayer(5, '熔岩');
-    if (world.getBlock(x, y, z) === B.FIRE || world.getBlock(x, y + 1, z) === B.FIRE) damagePlayer(2, '火焰');
-    if (!player.sneak && world.getBlock(x, y - 1, z) === B.MAGMA) damagePlayer(1, '岩浆块');
+    if (!player.sneak && env.magma) damagePlayer(1, '岩浆块');
     if ([[x, y, z], [x + 1, y, z], [x - 1, y, z], [x, y, z + 1], [x, y, z - 1]].some(p => world.getBlock(...p) === B.CACTUS)) damagePlayer(1, '仙人掌');
   }
 }
