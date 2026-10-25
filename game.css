@@ -89,8 +89,6 @@ body.playing #menu .brand{width:min(460px,64vw);margin-bottom:0}
 .mobile #invbox{max-height:94dvh}.mobile #inventoryContent{touch-action:pan-y}.mobile #inventoryGuide{touch-action:pan-y}.mobile #heldName{font-size:12px}
 #fireOverlay{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;image-rendering:pixelated}
 #cross,#hotbar,#survivalHud{z-index:2}#damage,#portalOverlay,#uw{z-index:1}
-#rotateHint{position:fixed;inset:0;z-index:50;background:#162019f5;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;font:16px system-ui;color:#e0e4d8;text-align:center}
-#rotateHint svg{width:90px;height:90px;image-rendering:pixelated}
 .menuDialog output{min-width:40px;text-align:right;font:12px monospace}.menuDialog label:has(output) input{width:120px}
 body:not(.mobile) #cross{width:16px;height:16px;margin:-8px 0 0 -8px}body:not(.mobile) #cross:before{left:7px;height:16px}body:not(.mobile) #cross:after{top:7px;width:16px}
 body:not(.mobile) #hotbar .slot:after{content:attr(data-key);position:absolute;top:1px;left:2px;font:9px monospace;color:#ddd8;text-shadow:1px 1px #000;pointer-events:none}
@@ -98,3 +96,26 @@ body:not(.mobile) #hotbar .slot:after{content:attr(data-key);position:absolute;t
 @media(max-width:600px){.titleMenu{gap:20px}#menu .brand{width:min(600px,91vw);margin-bottom:25px}.brand small{font-size:14px}.menuActions{width:min(320px,82vw)}.menuDialog{padding:18px}}
 @media(max-height:500px){.titleMenu{gap:12px;padding:14px 0}#menu .brand{width:min(470px,62vw);margin-bottom:2px}.brand small{font-size:12px;margin-bottom:4px}.menuActions{gap:6px;width:280px}#menu button,#menu select{padding:8px 12px;min-height:0}}
 @media(max-width:740px) and (orientation:landscape){.mobile{--gui-scale:1.75;--touch-key:44px}#dpad{left:calc(12px + env(safe-area-inset-left));bottom:52px}.touchActions{right:calc(12px + env(safe-area-inset-right));bottom:65px}#touchHealth,#touchHunger{width:144px;height:36px}}
+
+/* A landscape game surface also works inside portrait-only embedded browsers.
+   Transforming its parent gives fixed HUD elements the same coordinate space. */
+:root{--view-width:100vw;--view-height:100dvh}
+#gameViewport{position:fixed;inset:0}
+.virtualLandscape #gameViewport{inset:auto;left:0;top:0;width:var(--view-width);height:var(--view-height);transform-origin:0 0;transform:translateX(var(--view-height)) rotate(90deg)}
+.virtualLandscape{--touch-key:clamp(44px,calc(var(--view-height) * .135),66px)}
+.virtualLandscape .titleMenu{gap:12px;padding:14px 0}
+.virtualLandscape #menu .brand{width:min(470px,calc(var(--view-width) * .62));margin-bottom:2px}
+.virtualLandscape .brand small{font-size:12px;margin-bottom:4px}
+.virtualLandscape .menuActions{gap:6px;width:280px}
+.virtualLandscape #menu button,.virtualLandscape #menu select{padding:8px 12px;min-height:0}
+.virtualLandscape #invbox{width:min(740px,calc(var(--view-width) * .94));max-height:calc(var(--view-height) * .94)}
+.virtualLandscape #inventoryGuide{max-height:calc(var(--view-height) * .35)}
+.virtualLandscape #recipes{grid-template-columns:repeat(2,minmax(0,1fr))}
+.virtualLandscape .menuDialog{position:fixed;inset:auto;left:50%;top:50%;margin:0;transform:translate(-50%,-50%) rotate(90deg);width:min(380px,calc(var(--view-width) * .88));max-height:calc(var(--view-height) * .8);box-sizing:border-box}
+/* Safe-area values are expressed in the physical screen's axes. */
+.virtualLandscape #dpad{left:calc(24px + env(safe-area-inset-top));bottom:calc(54px + env(safe-area-inset-right))}
+.virtualLandscape .touchActions{right:calc(24px + env(safe-area-inset-bottom));bottom:calc(72px + env(safe-area-inset-right))}
+.virtualLandscape #hotbar,.virtualLandscape #touchControls #touchBag{bottom:calc(8px + env(safe-area-inset-right))}
+.virtualLandscape .touchTop{top:calc(10px + env(safe-area-inset-left))}
+.virtualLandscape #touchHealth,.virtualLandscape #touchHunger{top:calc(6px + env(safe-area-inset-left))}
+.virtualLandscape #touchHealth{left:calc(14px + env(safe-area-inset-top))}.virtualLandscape #touchHunger{right:calc(14px + env(safe-area-inset-bottom))}

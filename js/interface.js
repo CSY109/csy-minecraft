@@ -5,7 +5,10 @@ let touchStamp = '', lookPointer = null;
 const dpadPointers = new Map(), touchResetters = [];
 function isTouchMode() { return deviceMode === 'mobile'; }
 function isPortraitTouch() { return isTouchMode() && innerHeight > innerWidth; }
-function hasGameFocus() { return started && !paused && !dead && !invOpen && !isPortraitTouch() && (isTouchMode() || document.pointerLockElement === canvas); }
+function hasGameFocus() { return started && !paused && !dead && !invOpen && (isTouchMode() || document.pointerLockElement === canvas); }
+function touchPosition(e) {
+  return isPortraitTouch() ? { x: e.clientY, y: innerWidth - e.clientX } : { x: e.clientX, y: e.clientY };
+}
 function resetTouchInput() {
   touchMove.x = touchMove.z = 0; lookPointer = null; dpadPointers.clear();
   touchResetters.forEach(reset => reset());
@@ -46,8 +49,8 @@ function updateTouchUI() {
 function requestMobileLandscape() {
   if (!isTouchMode()) return;
   const lock = () => { try { screen.orientation?.lock?.('landscape')?.catch(() => {}); } catch {} };
-  // Some browsers require full screen before allowing an orientation lock.
-  // Others (including iOS) use the rotation prompt below.
+  // Fullscreen/orientation APIs are optional. The viewport below supplies a
+  // landscape layout even when an embedded browser refuses both APIs.
   try {
     if (!document.fullscreenElement && document.documentElement.requestFullscreen)
       document.documentElement.requestFullscreen().then(lock).catch(() => {});
@@ -55,8 +58,10 @@ function requestMobileLandscape() {
   } catch {}
 }
 function updateOrientation() {
-  $('rotateHint').hidden = !isPortraitTouch();
-  if (isPortraitTouch() && started && !paused && !dead && !invOpen) pauseGame();
+  const rotated = isPortraitTouch();
+  document.body.classList.toggle('virtualLandscape', rotated);
+  document.documentElement.style.setProperty('--view-width', (rotated ? innerHeight : innerWidth) + 'px');
+  document.documentElement.style.setProperty('--view-height', (rotated ? innerWidth : innerHeight) + 'px');
   updateTouchUI();
 }
 window.addEventListener('resize', () => { resetTouchInput(); touchStamp = ''; updateOrientation(); });
@@ -108,12 +113,12 @@ for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) pad.add
 });
 canvas.addEventListener('pointerdown', e => {
   if (!isTouchMode() || !hasGameFocus() || lookPointer) return;
-  e.preventDefault(); lookPointer = { id: e.pointerId, x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId);
+  e.preventDefault(); lookPointer = { id: e.pointerId, ...touchPosition(e) }; canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener('pointermove', e => {
   if (!lookPointer || lookPointer.id !== e.pointerId || !hasGameFocus()) return;
-  const dx = e.clientX - lookPointer.x, dy = e.clientY - lookPointer.y;
-  lookPointer.x = e.clientX; lookPointer.y = e.clientY;
+  const position = touchPosition(e), dx = position.x - lookPointer.x, dy = position.y - lookPointer.y;
+  lookPointer.x = position.x; lookPointer.y = position.y;
   const sensitivity = Number($('sensitivity').value) / 100;
   if (Math.abs(dx) < 200 && Math.abs(dy) < 200) { player.yaw -= dx * 0.004 * sensitivity; player.pitch = clamp(player.pitch - dy * 0.004 * sensitivity, -1.5533, 1.5533); }
 });

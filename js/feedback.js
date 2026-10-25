@@ -40,7 +40,7 @@ function drawPlayerFire() {
   const cv = $('fireOverlay'), burning = isSurvival() && !dead && vitals.burnTime > 0;
   cv.hidden = !burning;
   if (!burning) { fireOverlayStamp = ''; return; }
-  const width = Math.round(180 * innerWidth / innerHeight), frame = Math.floor(gameTime * 8) % 4;
+  const width = Math.round(180 * canvas.clientWidth / canvas.clientHeight), frame = Math.floor(gameTime * 8) % 4;
   const stamp = width + ':' + frame;
   if (stamp === fireOverlayStamp) return; fireOverlayStamp = stamp;
   cv.width = width; cv.height = 180;

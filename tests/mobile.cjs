@@ -12,13 +12,14 @@ module.exports = async (browser, url) => {
     assert(await page.title() === "csy's Minecraft", 'game title');
     assert(!await page.locator('#seed').isVisible() && !await page.locator('#help').isVisible(), 'cover hides settings and instructions');
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'portrait cover fits without overflow');
-    assert(await page.locator('#rotateHint').isVisible(), 'portrait phone requests landscape');
+    assert(await page.evaluate(()=>document.body.classList.contains('virtualLandscape')), 'portrait browser supplies a landscape game surface');
+    assert(await page.locator('#rotateHint').count()===0, 'no blocking rotation prompt');
     await page.setViewportSize({ width:844, height:390 });
     await page.locator('#settingsButton').click(); await page.locator('#seed').fill('12345'); await page.locator('#rd').fill('3'); await page.locator('#closeSettings').click();
     await page.locator('#play').tap();
     await page.waitForFunction(() => started && hasGameFocus() && !$('touchControls').hidden);
     assert(await page.evaluate(() => isTouchMode() && !document.pointerLockElement), 'phone starts without pointer lock');
-    assert(!await page.locator('#rotateHint').isVisible(), 'landscape hides rotation prompt');
+    assert(await page.evaluate(()=>!document.body.classList.contains('virtualLandscape')), 'physical landscape uses the normal game surface');
     for (const size of [{width:844,height:390},{width:667,height:375}]) {
       await page.setViewportSize(size);
       assert(await page.evaluate(() => {
@@ -29,7 +30,7 @@ module.exports = async (browser, url) => {
       }), 'landscape controls fit and do not overlap at '+size.width);
     }
     await page.setViewportSize({width:844,height:390});
-    passed('portrait prompts rotation; landscape pixel controls fit both large and small phones without overlap');
+    passed('portrait browser has a landscape fallback; landscape controls fit large and small phones without overlap');
     const cdp = await context.newCDPSession(page);
     const touch = (type, points) => cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points.map(([x,y,id=1])=>({x,y,id}))});
     const center = async selector => { const b=await page.locator(selector).boundingBox(); return [b.x+b.width/2,b.y+b.height/2,1]; };

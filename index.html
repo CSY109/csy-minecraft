@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#263f2b">
 <meta name="description" content="csy's Minecraft — 打开即玩的方块世界，支持电脑与手机。">
-<meta name="game-version" content="20261025-landscape-fire">
+<meta name="game-version" content="20261025-webview-landscape">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:"Courier New",monospace;user-select:none;color:#fff}
@@ -38,9 +38,10 @@
   #invgrid .slot{cursor:pointer;background:#8b8b8b}
   #invgrid .slot:hover{background:#fff8}
 </style>
-<link rel="stylesheet" href="game.css?v=20261025-landscape-fire">
+<link rel="stylesheet" href="game.css?v=20261025-webview-landscape">
 </head>
 <body>
+<div id="gameViewport">
 <canvas id="c"></canvas>
 <div id="uw"></div>
 <div id="cross"></div>
@@ -111,7 +112,7 @@
   </div>
   <button id="touchBag" aria-label="背包与合成" title="背包与合成"><svg viewBox="0 0 24 24"><path d="M3 10h4v4H3zM10 10h4v4h-4zM17 10h4v4h-4z"/></svg></button>
 </div>
-<div id="rotateHint" role="status" hidden><svg viewBox="0 0 64 64" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" d="M15 19h38v25H15zM7 27V12h15M7 12l9 9M57 39v15H42M57 54l-9-9"/></svg><span>旋转手机，横屏游玩</span></div>
+</div>
 <script src="js/util.js"></script>
 <script src="assets/classic-textures.js"></script>
 <script src="assets/classic-sounds.js"></script>
@@ -127,10 +128,10 @@
 <script src="js/survival.js?v=20261025-landscape-fire"></script>
 <script src="js/mobs.js?v=20261025-landscape-fire"></script>
 <script src="js/mob-render.js?v=20261025-landscape-fire"></script>
-<script src="js/feedback.js?v=20261025-landscape-fire"></script>
+<script src="js/feedback.js?v=20261025-webview-landscape"></script>
 <script src="js/dimensions.js"></script>
 <script src="js/world-jobs.js"></script>
 <script src="js/main.js?v=20261025-landscape-fire"></script>
-<script src="js/interface.js?v=20261025-landscape-fire"></script>
+<script src="js/interface.js?v=20261025-webview-landscape"></script>
 </body>
 </html>
