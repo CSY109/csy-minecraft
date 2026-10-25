@@ -134,6 +134,7 @@ function updateNeeded() {
 }
 function streamChunks(budgetMs) {
   updateNeeded();
+  worldJobs.streamingWorld = world;
   if (worldJobs.available()) {
     if (worldJobs.job) return;
     const R2 = renderDist * renderDist + 1;
@@ -141,6 +142,17 @@ function streamChunks(budgetMs) {
     for (const n of needed) {
       const c = world.getChunk(n[0], n[1]);
       if (n[2] <= R2 && c?.gen && (c.dirty || !c.mesh) && world.canMesh(c)) { worldJobs.mesh(world, c); return; }
+    }
+    for (const n of needed) {
+      if (n[2] > R2) continue;
+      const c = world.getChunk(n[0], n[1]);
+      if (!c?.gen) { worldJobs.generate(world, n[0], n[1]); return; }
+      if (!c.mesh) {
+        // Complete the nearest visible chunk's border first, rather than
+        // generating the whole distant ring before any new ground can appear.
+        for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++)
+          if (!world.getChunk(c.cx + dx, c.cz + dz)?.gen) { worldJobs.generate(world, c.cx + dx, c.cz + dz); return; }
+      }
     }
     for (const n of needed) {
       if (!world.getChunk(n[0], n[1])?.gen) { worldJobs.generate(world, n[0], n[1]); return; }
@@ -174,7 +186,7 @@ function updatePlayer(dt) {
   const P = player, p = P.p, v = P.v;
   const fwd = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0) + touchMove.z;
   const str = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + touchMove.x;
-  const shiftDown = !!(keys.ShiftLeft || keys.ShiftRight || keys.Shift);
+  const shiftDown = !!(keys.ShiftLeft || keys.ShiftRight || keys.Shift || touchFlightDown);
   const controlDown = !!(keys.ControlLeft || keys.ControlRight || keys.Control);
   if (fwd <= 0 || isSurvival() && vitals.hunger <= 5) P.sprint = false; else if (controlDown) P.sprint = true;
   P.sneak = shiftDown && !P.fly;
@@ -328,7 +340,7 @@ const frustum = new Float32Array(24);
 let lastW = 0, lastH = 0;
 
 function resize() {
-  const dpr = Math.min(window.devicePixelRatio || 1, isTouchMode() ? 1.25 : 2);
+  const dpr = Math.min(window.devicePixelRatio || 1, isTouchMode() ? 1 : 2);
   const w = Math.floor(canvas.clientWidth * dpr), h = Math.floor(canvas.clientHeight * dpr);
   if (w !== lastW || h !== lastH) { canvas.width = w; canvas.height = h; lastW = w; lastH = h; }
 }
@@ -533,6 +545,7 @@ function frame(now) {
   fpsAcc += dt; fpsN++; if (fpsAcc > 0.5) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
   const active = hasGameFocus();
   if (active) {
+    updateTouchFlight(dt);
     updatePlayer(dt);
     const e = eyePos(), d = lookDir();
     target = world.raycast(...e, ...d, isSurvival() ? 5 : 6);
@@ -660,37 +673,34 @@ $('play').onclick = () => {
   setTimeout(startGame, 50);
 };
 
+let startupStats = null;
 async function startGame() {
+  const begin = performance.now();
+  renderDist = parseInt($('rd').value);
+  world = new World(seedFromString($('seed').value));
+  // Terrain and the first mesh build in the worker while textures initialise.
+  const bootstrap = worldJobs.bootstrap(world).catch(() => null);
   await texturesReady;
   applyClassicAtlas(); initMobTextures(); initGameplayFeedback();
-  renderDist = parseInt($('rd').value);
-  const seed = seedFromString($('seed').value);
-  world = new World(seed);
-  const s = findSpawn();
-  player.p = s;
+  const result = await bootstrap;
+  if (result) player.p = result.spawn;
+  else {
+    const data = await prepareStarterWorld(world, () => new Promise(resolve => setTimeout(resolve, 0)));
+    player.p = installStarterWorld(world, data);
+  }
   initSurvival();
   resetDimensions(); resetSoundscape();
   gameTime = 0;
   lastCx = 1e9;
-  // preload a small area so the first frame is not empty
-  updateNeeded();
-  const t0 = performance.now();
-  for (const n of needed) {
-    if (n[2] > 16) break;
-    world.generate(n[0], n[1]);
-  }
-  for (const n of needed) {
-    if (n[2] > 9) break;
-    const c = world.getChunk(n[0], n[1]);
-    if (c && c.gen && !c.mesh && world.canMesh(c)) uploadChunk(c, world.meshChunk(c));
-  }
-  buildHotbar(); buildInventory();
+  buildHotbar(); // The full inventory is constructed when it is first opened.
   naturalSpawn(true);
   started = true;
+  startupStats = { elapsed: performance.now() - begin, chunks: world.chunks.size, background: !!result, ...result?.timings };
   document.body.classList.add('playing');
   $('loading').style.display = 'none';
   resumeGame();
   last = performance.now();
+  setTimeout(loadSounds, 750);
 }
 
 requestAnimationFrame(frame);

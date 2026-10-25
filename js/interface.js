@@ -1,6 +1,7 @@
 'use strict';
 let deviceMode = matchMedia('(pointer: coarse)').matches ? 'mobile' : 'desktop';
 const touchMove = { x: 0, z: 0 };
+let touchFlightDown = false, touchJumpHeld = false, touchJumpTime = 0;
 let touchStamp = '', lookPointer = null;
 const dpadPointers = new Map(), touchResetters = [];
 function isTouchMode() { return deviceMode === 'mobile'; }
@@ -11,6 +12,7 @@ function touchPosition(e) {
 }
 function resetTouchInput() {
   touchMove.x = touchMove.z = 0; lookPointer = null; dpadPointers.clear();
+  touchFlightDown = touchJumpHeld = false; touchJumpTime = 0;
   touchResetters.forEach(reset => reset());
   document.querySelectorAll('#touchControls .held').forEach(button => button.classList.remove('held'));
   for (const k in keys) keys[k] = false;
@@ -40,9 +42,12 @@ function updateTouchUI() {
   const stamp = [deviceMode, started, paused, dead, invOpen, gameMode, player.fly, hotbar[sel], isPortraitTouch()].join(':');
   if (stamp === touchStamp) return; touchStamp = stamp;
   $('touchControls').hidden = !isTouchMode() || !hasGameFocus();
-  $('touchFly').hidden = isSurvival(); $('touchFly').classList.toggle('active', player.fly);
+  const flying = player.fly && !isSurvival();
+  document.body.classList.toggle('touchFlying', isTouchMode() && flying);
+  $('touchDescend').hidden = !flying;
   $('touchAmmo').hidden = hotbar[sel] !== I.BOW;
   $('touchJump').setAttribute('aria-label', player.fly ? '上升' : '跳跃'); $('touchJump').title = player.fly ? '上升' : '跳跃';
+  $('touchJump').querySelector('.touchKeyLabel').textContent = player.fly ? '上升' : '跳跃';
   $('touchSneak').setAttribute('aria-label', player.fly ? '下降' : '潜行'); $('touchSneak').title = player.fly ? '下降' : '潜行';
   $('touchHealth').hidden = $('touchHunger').hidden = !isSurvival();
 }
@@ -73,7 +78,6 @@ for (const [open, panel, close] of [['settingsButton', 'settingsDialog', 'closeS
   $(panel).addEventListener('click', e => { if (e.target === $(panel) && (e.clientX < e.target.getBoundingClientRect().left || e.clientX > e.target.getBoundingClientRect().right || e.clientY < e.target.getBoundingClientRect().top || e.clientY > e.target.getBoundingClientRect().bottom)) $(panel).close(); });
 }
 $('touchBag').onclick = () => setInv(true); $('touchPause').onclick = pauseGame;
-$('touchFly').onclick = () => { if (!isSurvival()) { player.fly = !player.fly; player.v[1] = 0; updateTouchUI(); } };
 $('touchAmmo').onclick = () => selectArrow(selectedArrow === I.ARROW ? I.EXPLOSIVE_ARROW : I.ARROW);
 function holdButton(id, press, release) {
   let pointer = null;
@@ -88,7 +92,13 @@ function holdButton(id, press, release) {
   const up = e => { if (e.pointerId !== pointer) return; pointer = null; $(id).classList.remove('held'); release(e.type !== 'pointerup'); };
   for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) $(id).addEventListener(type, up);
 }
-holdButton('touchJump', () => { keys.Space = true; }, () => { keys.Space = false; });
+function updateTouchFlight(dt) {
+  if (!isTouchMode() || !touchJumpHeld || isSurvival() || player.fly) return;
+  touchJumpTime += dt;
+  if (touchJumpTime >= 0.45) { player.fly = true; player.v[1] = 0; updateTouchUI(); }
+}
+holdButton('touchJump', () => { keys.Space = true; touchJumpHeld = true; touchJumpTime = 0; }, () => { keys.Space = false; touchJumpHeld = false; touchJumpTime = 0; });
+holdButton('touchDescend', () => { touchFlightDown = true; }, () => { touchFlightDown = false; });
 holdButton('touchSneak', () => { keys.ShiftLeft = true; }, () => { keys.ShiftLeft = false; });
 holdButton('touchAttack', () => { mouseL = true; actTimer = 0; if (mobTarget && !bow.active) attackMob(); }, () => { mouseL = false; resetMining(); });
 holdButton('touchUse', () => { mouseR = true; placeBlock(); actTimer = 0.3; }, cancelled => { if (cancelled) cancelBow(); else releaseBow(); mouseR = false; });

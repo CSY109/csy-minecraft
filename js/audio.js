@@ -2,13 +2,31 @@
 let actx = null, masterGain = null, audioReady = null;
 const decodedSounds = Object.create(null), soundHistory = new Map();
 const liveSounds = new Set();
+let soundAssets = null;
+function ensureSoundAssets() {
+  if (typeof CLASSIC_SOUNDS !== 'undefined') return Promise.resolve();
+  if (!soundAssets) soundAssets = new Promise((resolve, reject) => {
+    const script = document.createElement('script'); script.src = 'assets/classic-sounds.js';
+    script.onload = resolve; script.onerror = () => reject(new Error('Sound download failed')); document.head.appendChild(script);
+  });
+  return soundAssets;
+}
 function loadSounds() {
   if (audioReady || !actx) return audioReady;
-  audioReady = Promise.all(Object.entries(CLASSIC_SOUNDS).map(async ([name, entries]) => {
-    decodedSounds[name] = await Promise.all(entries.map(async src => {
-      const bytes = Uint8Array.from(atob(src.split(',')[1]), c => c.charCodeAt(0)); return actx.decodeAudioData(bytes.buffer);
-    }));
-  })).catch(() => {});
+  audioReady = (async () => {
+    await ensureSoundAssets();
+    // Decode one small group at a time so startup never queues all 78 samples.
+    for (const [name, entries] of Object.entries(CLASSIC_SOUNDS)) {
+      decodedSounds[name] = [];
+      for (const src of entries) {
+        try {
+          const bytes = Uint8Array.from(atob(src.split(',')[1]), c => c.charCodeAt(0));
+          decodedSounds[name].push(await actx.decodeAudioData(bytes.buffer));
+        } catch { /* A single unsupported recording must not disable other sounds. */ }
+      }
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+  })().catch(() => {});
   return audioReady;
 }
 function playSample(name, volume = 0.12, position = null, pitch = 1, loop = false) {
@@ -38,7 +56,7 @@ function initAudio() {
     }
     masterGain.gain.value = Number(document.getElementById('volume').value) / 100;
     if (actx.state === 'suspended') actx.resume().catch(() => {});
-    loadSounds();
+    if (started) loadSounds();
   } catch (_) { /* Audio is optional on browsers without Web Audio. */ }
 }
 function sfx(freq, dur, vol, type = 'lowpass') {

@@ -4,7 +4,7 @@
 // ============================================================
 
 const canvas = document.getElementById('c');
-const gl = canvas.getContext('webgl2', { antialias: true, alpha: false });
+const gl = canvas.getContext('webgl2', { antialias: !matchMedia('(pointer: coarse)').matches, alpha: false });
 if (!gl) { alert('需要支持 WebGL2 的浏览器'); }
 
 function compile(type, src) {

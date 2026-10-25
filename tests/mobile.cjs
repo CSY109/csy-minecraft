@@ -56,10 +56,11 @@ module.exports = async (browser, url) => {
     await page.locator('#touchPause').tap();
     await page.waitForFunction(()=>paused&&$('menu').style.display==='flex',null,{timeout:3000});
     await page.locator('#mode').selectOption('creative'); await page.locator('#play').tap();
-    await page.waitForFunction(()=>hasGameFocus()&&!$('touchFly').hidden); await page.locator('#touchFly').tap();
-    await page.evaluate(()=>{player.p=[0.5,60,0.5];player.v=[0,0,0];});
-    const jump=await center('#touchJump'); await touch('touchStart',[jump]); await page.waitForFunction(()=>player.p[1]>60.5); await touch('touchEnd',[]);
-    const y=await page.evaluate(()=>player.p[1]), down=await center('#touchSneak'); await touch('touchStart',[down]); await page.waitForFunction(y=>player.p[1]<y-0.5,y);await touch('touchEnd',[]);
+    await page.waitForFunction(()=>hasGameFocus());
+    await page.evaluate(()=>{player.p=[0.5,60,0.5];player.v=[0,0,0];player.fly=false;});
+    const jump=await center('#touchJump'); await touch('touchStart',[jump]); await page.waitForFunction(()=>player.fly&&!$('touchDescend').hidden);
+    const upY=await page.evaluate(()=>player.p[1]);await page.waitForFunction(y=>player.p[1]>y+0.5,upY);await touch('touchEnd',[]);
+    const y=await page.evaluate(()=>player.p[1]), down=await center('#touchDescend'); await touch('touchStart',[down]); await page.waitForFunction(y=>player.p[1]<y-0.5,y);await touch('touchEnd',[]);
     await page.locator('#touchBag').tap(); await page.waitForFunction(()=>invOpen&&!hasGameFocus());
     const clock=await page.evaluate(()=>gameTime); await page.locator('#invSearch').fill('火把');
     assert(await page.getByRole('button',{name:'火把',exact:true}).count()===1,'phone inventory finds torch');
