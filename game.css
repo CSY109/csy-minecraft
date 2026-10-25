@@ -58,7 +58,16 @@ body.playing #menu .brand{width:min(460px,64vw);margin-bottom:0}
 #menu button,#menu select{font:600 16px system-ui,sans-serif;letter-spacing:.02em;border:2px solid #172018;border-radius:0;box-shadow:inset 0 2px #ffffff66,inset 0 -3px #0004,0 3px #09120c66;color:#f7f6ed;text-shadow:1px 2px #151c1599;background:#70796d;min-width:0;padding:11px 15px;cursor:pointer;box-sizing:border-box}
 #menu #play{background:#5b7348;min-height:48px}#menu button:hover{background:#80926d}#menu #play:hover{background:#75905b}
 #menu #mode{text-align:center;width:100%;appearance:auto;background:#465144;font-weight:400}
-.menuSecondary{display:grid;grid-template-columns:1fr 1fr;gap:10px}.menuSecondary button{font-size:14px!important}
+.menuSecondary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.menuSecondary button{font-size:14px!important}
+#saveActions{display:grid;grid-template-columns:1fr 1fr;gap:8px}#saveActions button{font-size:13px!important;padding-left:6px!important;padding-right:6px!important}
+#loading{z-index:40}#loading h2{font:18px system-ui}
+#savesDialog{width:min(520px,92vw);padding:18px}#savesDialog .dialogHeading{margin-bottom:14px}
+#saveSlots{display:grid;gap:8px}.saveSlot{display:grid;grid-template-columns:minmax(90px,1fr) 66px 56px 56px;gap:7px;align-items:center;border:1px solid #81907855;background:#202b21;padding:12px}
+.saveSlot strong{font:600 15px system-ui;color:#f1f0df}.saveSlot small{display:block;font:11px system-ui;color:#a8b39e;margin-top:5px}
+.saveSlot button,.saveSlot select{min-width:0;padding:7px 4px;font:13px system-ui;border:1px solid #7e8975;border-radius:0;background:#616d57;color:#f2f1e8;box-shadow:inset 0 1px #c6cbbb66;text-shadow:none;cursor:pointer;min-height:34px;box-sizing:border-box}
+.saveSlot .deleteSave{font-size:11px;background:#494e43;color:#c9cdbf}.saveSlot button:disabled{opacity:.4;cursor:default}
+#saveStatus{font:12px/1.5 system-ui;color:#aab5a0;margin:14px 0 0}
+.virtualLandscape #savesDialog{width:min(520px,calc(var(--view-width) * .92))}
 .menuDialog{width:min(380px,88vw);max-height:80dvh;overflow:auto;border:2px solid #101911;background:#303b2f;color:#f2f0e5;box-shadow:inset 0 2px #8b9880,0 16px 70px #0009;padding:22px;font:14px system-ui,sans-serif;touch-action:pan-y}
 .menuDialog::backdrop{background:#051109aa;backdrop-filter:blur(5px)}
 .dialogHeading{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}.dialogHeading h2{font:600 20px system-ui;margin:0}

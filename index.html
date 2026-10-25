@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#263f2b">
 <meta name="description" content="csy's Minecraft — 打开即玩的方块世界，支持电脑与手机。">
-<meta name="game-version" content="20261025-fast-flight">
+<meta name="game-version" content="20261025-saves-bow">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:"Courier New",monospace;user-select:none;color:#fff}
@@ -38,7 +38,7 @@
   #invgrid .slot{cursor:pointer;background:#8b8b8b}
   #invgrid .slot:hover{background:#fff8}
 </style>
-<link rel="stylesheet" href="game.css?v=20261025-fast-flight">
+<link rel="stylesheet" href="game.css?v=20261025-saves-bow">
 </head>
 <body>
 <div id="gameViewport">
@@ -74,9 +74,11 @@
   <div class="menuActions">
   <button id="play">开始游戏</button>
   <select id="mode" aria-label="游戏模式"><option value="survival">生存模式</option><option value="creative">创造模式</option></select>
-  <div class="menuSecondary"><button id="settingsButton">设置</button><button id="helpButton">操作</button></div>
+  <div class="menuSecondary"><button id="savesButton">存档</button><button id="settingsButton">设置</button><button id="helpButton">操作</button></div>
+  <div id="saveActions" hidden><button id="saveButton">保存游戏</button><button id="saveExitButton">保存并退出</button></div>
   </div></main>
 </div>
+<dialog id="savesDialog" class="menuDialog"><div class="dialogHeading"><h2>存档</h2><button id="closeSaves" class="iconButton" aria-label="关闭存档">×</button></div><div id="saveSlots"></div><p id="saveStatus">存档保存在当前浏览器</p></dialog>
 <dialog id="settingsDialog" class="menuDialog"><div class="dialogHeading"><h2>设置</h2><button id="closeSettings" class="iconButton" aria-label="关闭设置">×</button></div>
   <label>种子 <input id="seed" type="text" placeholder="留空随机"></label>
   <label>渲染距离 <input id="rd" type="range" min="3" max="16" value="8"> <span id="rdv">8</span></label>
@@ -93,7 +95,7 @@
     飞行时空格上升，左 / 右 Shift 下降，松开悬停，落地后退出飞行。<br>
     生存起步：采原木 → 合成木板、木棍、工作台 → 放工作台 → 制作工具。<br>
     白天寻找动物与食物，夜晚小心僵尸、蜘蛛和苦力怕。搭建傀儡守护家园。
-  </div><div class="helpContent mobileHelp">横屏游玩，左侧十字键移动，按住两键可斜走；滑动场景转动视角。<br>十字键中间为潜行，右侧向上箭头为跳跃。<br>创造模式长按跳跃进入飞行，右侧「上升」「下降」控制高度，松开悬停，下降到地面退出飞行。<br>镐图标：按住挖掘或攻击；方块图标：放置或使用。弓按住方块键拉弓，松开发射。<br>快捷栏旁「…」打开背包，上方暂停键切换模式。</div><p class="helpContent">火把：煤炭 + 木棍 → 4 个。荧石、火和熔岩也能照亮周围。打火石可点火，地狱岩上的火会持续燃烧。生存中接触火或熔岩会着火受伤，入水灭火；从超过 3 格的高度落地会摔伤。</p></div>
+  </div><div class="helpContent mobileHelp">横屏游玩，左侧十字键移动，按住两键可斜走；滑动场景转动视角。<br>十字键中间为潜行，右侧向上箭头为跳跃。<br>创造模式长按跳跃进入飞行，右侧「上升」「下降」控制高度，松开悬停，下降到地面退出飞行。<br>镐图标：按住挖掘或攻击；方块图标：放置或使用。弓按住方块键拉弓，按住后可拖动瞄准，也可用另一根手指滑动场景，松开发射。<br>快捷栏旁「…」打开背包，上方暂停键切换模式。</div><p class="helpContent">菜单「存档」最多保留三个世界，进入前可选生存／创造，游戏中也可切换。每 20 秒、暂停和切换模式时自动保存；离开时可用「保存并退出」。存档在当前浏览器中，清除网站数据会删除存档。</p><p class="helpContent">火把：煤炭 + 木棍 → 4 个。荧石、火和熔岩也能照亮周围。打火石可点火，地狱岩上的火会持续燃烧。生存中接触火或熔岩会着火受伤，入水灭火；从超过 3 格的高度落地会摔伤。</p></div>
 </dialog>
 <div id="touchControls" aria-label="触控操作" hidden>
   <canvas id="touchHealth" width="80" height="20" aria-hidden="true"></canvas><canvas id="touchHunger" width="80" height="20" aria-hidden="true"></canvas>
@@ -125,13 +127,14 @@
 <script src="js/render.js?v=20261025-fast-flight"></script>
 <script src="js/audio.js?v=20261025-fast-flight"></script>
 <script src="js/hazards.js?v=20261025-landscape-fire"></script>
-<script src="js/survival.js?v=20261025-landscape-fire"></script>
+<script src="js/survival.js?v=20261025-saves-bow"></script>
 <script src="js/mobs.js?v=20261025-landscape-fire"></script>
 <script src="js/mob-render.js?v=20261025-landscape-fire"></script>
 <script src="js/feedback.js?v=20261025-webview-landscape"></script>
 <script src="js/dimensions.js"></script>
-<script src="js/world-jobs.js?v=20261025-fast-flight"></script>
-<script src="js/main.js?v=20261025-fast-flight"></script>
-<script src="js/interface.js?v=20261025-fast-flight"></script>
+<script src="js/world-jobs.js?v=20261025-saves-bow"></script>
+<script src="js/main.js?v=20261025-saves-bow"></script>
+<script src="js/interface.js?v=20261025-saves-bow"></script>
+<script src="js/saves.js?v=20261025-saves-bow"></script>
 </body>
 </html>

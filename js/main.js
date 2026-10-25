@@ -7,7 +7,7 @@ const $ = (id) => document.getElementById(id);
 const DAY_LEN = 600;           // seconds per full day
 const HW = 0.3, PH = 1.8;
 
-let world = null, started = false, invOpen = false, paused = false;
+let world = null, started = false, invOpen = false, paused = false, sessionBusy = false;
 let renderDist = 8, gameTime = DAY_LEN * 0.0; // starts at morning-noon (see dayFrac)
 let showDebug = false;
 const keys = {};
@@ -540,7 +540,7 @@ function updateParticles(dt) {
 let last = 0, fpsAcc = 0, fpsN = 0, fps = 0, timeScale = 1;
 function frame(now) {
   requestAnimationFrame(frame);
-  if (!started) return;
+  if (!started || sessionBusy) return;
   const dt = Math.min(0.05, (now - last) / 1000 || 0.016); last = now;
   fpsAcc += dt; fpsN++; if (fpsAcc > 0.5) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
   const active = hasGameFocus();
@@ -655,11 +655,12 @@ document.addEventListener('pointerlockchange', () => {
   const locked = document.pointerLockElement === canvas;
   if (isTouchMode()) return;
   mouseLookReady = false;
+  if (sessionBusy) return;
   if (!locked) { for (const k in keys) keys[k] = false; mouseL = mouseR = false; resetMining(); cancelBow(); }
   if (!locked) stopEnvironmentSounds();
   document.body.classList.toggle('playing', started && !dead);
   if (dead) { $('menu').style.display = 'none'; return; }
-  if (!locked && started && !invOpen) { $('menu').style.display = 'flex'; $('play').textContent = '继续游戏'; paused = true; }
+  if (!locked && started && !invOpen) { $('menu').style.display = 'flex'; $('play').textContent = '继续游戏'; paused = true; queueGameSave(); }
   if (locked) { $('menu').style.display = 'none'; paused = false; }
   if (locked) { canvas.tabIndex = -1; canvas.focus({ preventScroll: true }); }
 });
@@ -669,19 +670,23 @@ $('play').onclick = () => {
   requestMobileLandscape();
   initAudio();
   if (started) { renderDist = parseInt($('rd').value); lastCx = 1e9; resumeGame(); return; }
-  $('menu').style.display = 'none'; $('loading').style.display = 'flex';
-  setTimeout(startGame, 50);
+  startOrContinueGame().catch(showSaveError);
 };
 
 let startupStats = null;
+let gameGraphicsReady = false;
+async function ensureGameGraphics() {
+  if (gameGraphicsReady) return;
+  await texturesReady;
+  applyClassicAtlas(); initMobTextures(); initGameplayFeedback(); gameGraphicsReady = true;
+}
 async function startGame() {
   const begin = performance.now();
   renderDist = parseInt($('rd').value);
   world = new World(seedFromString($('seed').value));
   // Terrain and the first mesh build in the worker while textures initialise.
   const bootstrap = worldJobs.bootstrap(world).catch(() => null);
-  await texturesReady;
-  applyClassicAtlas(); initMobTextures(); initGameplayFeedback();
+  await ensureGameGraphics();
   const result = await bootstrap;
   if (result) player.p = result.spawn;
   else {

@@ -88,7 +88,7 @@ class WorldJobs {
         this.finish(data);
         // Dispatch the next job when a result arrives, without waiting a frame
         // per chunk. Only continue a world that the render loop is streaming.
-        if (started && this.streamingWorld === world && !this.disabled) streamChunks(0);
+        if (started && !sessionBusy && this.streamingWorld === world && !this.disabled) streamChunks(0);
       };
       this.worker.onerror = e => { e.preventDefault(); this.disable(e.message); };
       return true;
@@ -99,6 +99,18 @@ class WorldJobs {
     this.job?.reject?.(new Error(reason));
     this.worker?.terminate(); this.worker = null; this.job = null; this.disabled = true;
     if (this.url) URL.revokeObjectURL(this.url); this.url = null;
+  }
+  cancel() {
+    this.job?.reject?.(new Error('World loading cancelled'));
+    this.worker?.terminate(); this.worker = null; this.job = null; this.streamingWorld = null;
+    if (this.url) URL.revokeObjectURL(this.url); this.url = null;
+  }
+  request(w, type, target, cz) {
+    return new Promise((resolve, reject) => {
+      const sent = type === 'mesh' ? this.mesh(w, target) : this.generate(w, target, cz);
+      if (!sent) { reject(new Error(this.failure || 'World worker busy')); return; }
+      Object.assign(this.job, { resolve, reject });
+    });
   }
   send(w, type, cx, cz, payload, transfer = []) {
     if (!this.available() || this.job) return false;
@@ -139,7 +151,7 @@ class WorldJobs {
     if (job.type === 'bootstrap') {
       const spawn = installStarterWorld(w, data); job.resolve({ spawn, timings: data.timings });
     } else if (job.type === 'generate') {
-      if (w.getChunk(job.cx, job.cz)?.gen) return;
+      if (w.getChunk(job.cx, job.cz)?.gen) { job.resolve?.(w.getChunk(job.cx, job.cz)); return; }
       const c = new Chunk(job.cx, job.cz);
       c.blocks = data.blocks; c.hm = data.hm; c.maxY = data.maxY; c.gen = true;
       // Edits may have changed while this chunk was being generated.
@@ -148,10 +160,12 @@ class WorldJobs {
       w.chunks.set(w.key(c.cx, c.cz), c);
       if (edits) for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) w.recalcHeight(c, x, z);
       w.physics.seedChunk(c);
+      job.resolve?.(c);
     } else {
       const c = w.getChunk(job.cx, job.cz);
-      if (c !== job.chunk || c.revision !== job.revision) return;
+      if (c !== job.chunk || c.revision !== job.revision) { job.reject?.(new Error('World changed during meshing')); return; }
       uploadChunk(c, data); c.dirty = false; w.lighting.cache.set(c.cx + ',' + c.cz, data.light);
+      job.resolve?.(c);
     }
   }
 }

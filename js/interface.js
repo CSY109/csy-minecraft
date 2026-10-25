@@ -2,16 +2,16 @@
 let deviceMode = matchMedia('(pointer: coarse)').matches ? 'mobile' : 'desktop';
 const touchMove = { x: 0, z: 0 };
 let touchFlightDown = false, touchJumpHeld = false, touchJumpTime = 0;
-let touchStamp = '', lookPointer = null;
+let touchStamp = '', lookPointer = null, useLookPointer = null;
 const dpadPointers = new Map(), touchResetters = [];
 function isTouchMode() { return deviceMode === 'mobile'; }
 function isPortraitTouch() { return isTouchMode() && innerHeight > innerWidth; }
-function hasGameFocus() { return started && !paused && !dead && !invOpen && (isTouchMode() || document.pointerLockElement === canvas); }
+function hasGameFocus() { return started && !sessionBusy && !paused && !dead && !invOpen && (isTouchMode() || document.pointerLockElement === canvas); }
 function touchPosition(e) {
   return isPortraitTouch() ? { x: e.clientY, y: innerWidth - e.clientX } : { x: e.clientX, y: e.clientY };
 }
 function resetTouchInput() {
-  touchMove.x = touchMove.z = 0; lookPointer = null; dpadPointers.clear();
+  touchMove.x = touchMove.z = 0; lookPointer = useLookPointer = null; dpadPointers.clear();
   touchFlightDown = touchJumpHeld = false; touchJumpTime = 0;
   touchResetters.forEach(reset => reset());
   document.querySelectorAll('#touchControls .held').forEach(button => button.classList.remove('held'));
@@ -31,6 +31,7 @@ function pauseGame() {
   resetTouchInput(); paused = true; stopEnvironmentSounds();
   $('menu').style.display = 'flex'; $('play').textContent = '继续游戏'; updateTouchUI();
   if (document.pointerLockElement === canvas) document.exitPointerLock();
+  queueGameSave();
 }
 function setDevice(mode) {
   deviceMode = mode === 'mobile' ? 'mobile' : 'desktop'; resetTouchInput();
@@ -39,7 +40,7 @@ function setDevice(mode) {
   touchStamp = ''; updateOrientation();
 }
 function updateTouchUI() {
-  const stamp = [deviceMode, started, paused, dead, invOpen, gameMode, player.fly, hotbar[sel], isPortraitTouch()].join(':');
+  const stamp = [deviceMode, started, sessionBusy, paused, dead, invOpen, gameMode, player.fly, hotbar[sel], isPortraitTouch()].join(':');
   if (stamp === touchStamp) return; touchStamp = stamp;
   $('touchControls').hidden = !isTouchMode() || !hasGameFocus();
   const flying = player.fly && !isSurvival();
@@ -87,7 +88,7 @@ function holdButton(id, press, release) {
   });
   $(id).addEventListener('pointerdown', e => {
     if (!hasGameFocus() || pointer !== null) return;
-    e.preventDefault(); pointer = e.pointerId; $(id).setPointerCapture(pointer); $(id).classList.add('held'); press();
+    e.preventDefault(); pointer = e.pointerId; $(id).setPointerCapture(pointer); $(id).classList.add('held'); press(e);
   });
   const up = e => { if (e.pointerId !== pointer) return; pointer = null; $(id).classList.remove('held'); release(e.type !== 'pointerup'); };
   for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) $(id).addEventListener(type, up);
@@ -101,7 +102,18 @@ holdButton('touchJump', () => { keys.Space = true; touchJumpHeld = true; touchJu
 holdButton('touchDescend', () => { touchFlightDown = true; }, () => { touchFlightDown = false; });
 holdButton('touchSneak', () => { keys.ShiftLeft = true; }, () => { keys.ShiftLeft = false; });
 holdButton('touchAttack', () => { mouseL = true; actTimer = 0; if (mobTarget && !bow.active) attackMob(); }, () => { mouseL = false; resetMining(); });
-holdButton('touchUse', () => { mouseR = true; placeBlock(); actTimer = 0.3; }, cancelled => { if (cancelled) cancelBow(); else releaseBow(); mouseR = false; });
+holdButton('touchUse', e => {
+  if (hotbar[sel] === I.BOW) useLookPointer = { id: e.pointerId, ...touchPosition(e) };
+  mouseR = true; placeBlock(); actTimer = 0.3;
+}, cancelled => { useLookPointer = null; if (cancelled) cancelBow(); else releaseBow(); mouseR = false; });
+function moveTouchView(tracker, e) {
+  if (!tracker || tracker.id !== e.pointerId || !hasGameFocus()) return;
+  const position = touchPosition(e), dx = position.x - tracker.x, dy = position.y - tracker.y;
+  tracker.x = position.x; tracker.y = position.y;
+  const sensitivity = Number($('sensitivity').value) / 100;
+  if (Math.abs(dx) < 200 && Math.abs(dy) < 200) { player.yaw -= dx * 0.004 * sensitivity; player.pitch = clamp(player.pitch - dy * 0.004 * sensitivity, -1.5533, 1.5533); }
+}
+$('touchUse').addEventListener('pointermove', e => { if (hotbar[sel] === I.BOW) moveTouchView(useLookPointer, e); });
 const pad = $('dpad'), directions = { touchForward: [0, 1], touchBackward: [0, -1], touchLeft: [-1, 0], touchRight: [1, 0] };
 function updateDpad() {
   touchMove.x = touchMove.z = 0;
@@ -126,11 +138,7 @@ canvas.addEventListener('pointerdown', e => {
   e.preventDefault(); lookPointer = { id: e.pointerId, ...touchPosition(e) }; canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener('pointermove', e => {
-  if (!lookPointer || lookPointer.id !== e.pointerId || !hasGameFocus()) return;
-  const position = touchPosition(e), dx = position.x - lookPointer.x, dy = position.y - lookPointer.y;
-  lookPointer.x = position.x; lookPointer.y = position.y;
-  const sensitivity = Number($('sensitivity').value) / 100;
-  if (Math.abs(dx) < 200 && Math.abs(dy) < 200) { player.yaw -= dx * 0.004 * sensitivity; player.pitch = clamp(player.pitch - dy * 0.004 * sensitivity, -1.5533, 1.5533); }
+  moveTouchView(lookPointer, e);
 });
 for (const type of ['pointerup', 'pointercancel']) canvas.addEventListener(type, e => { if (lookPointer?.id === e.pointerId) lookPointer = null; });
 // Touch browsers can suppress a compatibility click after a multi-finger gesture.

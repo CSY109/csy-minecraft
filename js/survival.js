@@ -46,6 +46,7 @@ function switchGameMode(next) {
   clearBurning(vitals); resetTouchInput();
   inventoryStamp = hudStamp = ''; refreshHotbar(); updateHUD();
   if (invOpen) renderInventory(true);
+  queueGameSave();
 }
 function cancelBow(resetPose = true) {
   bow.active = false; bow.elapsed = 0; bow.slot = -1;
