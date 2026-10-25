@@ -12,12 +12,12 @@ class BlockPhysics {
   loaded(x, y, z) { return y >= 0 && y < CH && !!this.world.getChunk(x >> 4, z >> 4)?.gen; }
   level(x, y, z) { return this.levels.get(this.key(x, y, z)) || 0; }
   gravity(id) { return id === B.SAND || id === B.GRAVEL; }
-  delay(id) { return this.gravity(id) ? 2 : id === B.FIRE ? 20 : id === B.TORCH ? 1 : id === B.LAVA ? this.world.dimension === 'nether' ? 10 : 30 : 5; }
+  delay(id) { return this.gravity(id) ? 2 : isBedBlock(id) ? 1 : id === B.FIRE ? 20 : id === B.TORCH ? 1 : id === B.LAVA ? this.world.dimension === 'nether' ? 10 : 30 : 5; }
   decay(id) { return id === B.LAVA && this.world.dimension !== 'nether' ? 2 : 1; }
   enqueue(x, y, z, delay = null) {
     if (!this.loaded(x, y, z)) return;
     const id = this.world.getBlock(x, y, z);
-    if (!LIQ[id] && !this.gravity(id) && id !== B.FIRE && id !== B.TORCH) return;
+    if (!LIQ[id] && !this.gravity(id) && !isBedBlock(id) && id !== B.FIRE && id !== B.TORCH) return;
     if (this.gravity(id) && !this.canFallThrough(this.world.getBlock(x, y - 1, z))) {
       this.queue.delete(this.key(x, y, z)); return;
     }
@@ -50,7 +50,7 @@ class BlockPhysics {
     for (let y = 1; y <= c.maxY; y++) for (let z = 0; z < 16; z++) for (let x = 0; x < 16; x++) {
       const id = c.blocks[x + z * 16 + y * 256], wx = c.cx * 16 + x, wz = c.cz * 16 + z;
       if (this.gravity(id) && this.canFallThrough(w.getBlock(wx, y - 1, wz))) this.enqueue(wx, y, wz);
-      if (id === B.TORCH || id === B.FIRE) this.enqueue(wx, y, wz);
+      if (id === B.TORCH || id === B.FIRE || isBedBlock(id)) this.enqueue(wx, y, wz);
       if (LIQ[id] && ADJACENT.some(([dx, dy, dz]) => dy !== 1 && this.loaded(wx + dx, y + dy, wz + dz) && this.replaceable(w.getBlock(wx + dx, y + dy, wz + dz)))) this.enqueue(wx, y, wz);
       if (!id && (x === 0 || x === 15 || z === 0 || z === 15)) for (const [dx, dz] of HORIZONTAL) if (LIQ[w.getBlock(wx + dx, y, wz + dz)]) this.enqueue(wx + dx, y, wz + dz);
     }
@@ -187,8 +187,12 @@ class BlockPhysics {
         if (eligible.has(key) && this.canFallThrough(this.world.getBlock(x, y - 1, z)) && this.falling.length < 128) {
           this.falling.push({ x, y, z, id, vy: 0 }); this.world.setBlock(x, y, z, B.AIR);
         } else if (this.canFallThrough(this.world.getBlock(x, y - 1, z))) this.enqueue(x, y, z);
+      } else if (isBedBlock(id)) {
+        const bed = bedAt(this.world, x, y, z);
+        if (bed === null) this.enqueue(x, y, z, 20);
+        else if (!bed) { this.world.setBlock(x, y, z, B.AIR); addItem(I.BED); }
       } else if (id === B.TORCH) {
-        if (!SOLID[this.world.getBlock(x, y - 1, z)]) { this.world.setBlock(x, y, z, B.AIR); addItem(B.TORCH); }
+        if (!SOLID[this.world.getBlock(x, y - 1, z)] || isBedBlock(this.world.getBlock(x, y - 1, z))) { this.world.setBlock(x, y, z, B.AIR); addItem(B.TORCH); }
       } else if (id === B.FIRE) {
         const age = (this.fireAges.get(key) || 0) + 1;
         if (!SOLID[this.world.getBlock(x, y - 1, z)] || ADJACENT.some(([dx, dy, dz]) => this.world.getBlock(x + dx, y + dy, z + dz) === B.WATER) || age >= 12 && this.world.getBlock(x, y - 1, z) !== B.NETHERRACK)

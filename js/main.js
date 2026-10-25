@@ -76,7 +76,7 @@ function collides(x, y, z) {
   const y0 = Math.floor(y), y1 = Math.floor(y + PH - 1e-4);
   const z0 = Math.floor(z - HW), z1 = Math.floor(z + HW);
   for (let yy = y0; yy <= y1; yy++) for (let zz = z0; zz <= z1; zz++) for (let xx = x0; xx <= x1; xx++)
-    if (SOLID[world.getBlock(xx, yy, zz)]) return true;
+    { const id = world.getBlock(xx, yy, zz); if (SOLID[id] && y < yy + blockHeight(id) - 1e-5) return true; }
   return false;
 }
 function stepAxis(a, d) {
@@ -221,8 +221,19 @@ function updatePlayer(dt) {
     return false;
   };
   const ox = p[0], oz = p[2];
-  stepAxis(0, v[0] * dt); if (guard(0)) { p[0] = ox; v[0] = 0; }
-  stepAxis(2, v[2] * dt); if (guard(2)) { p[2] = oz; v[2] = 0; }
+  const moveHorizontal = axis => {
+    const distance = v[axis] * dt, before = p.slice(), velocity = v[axis];
+    if (!stepAxis(axis, distance) || !wasGround || P.fly || P.sneak) return;
+    const tx = before[0] + (axis === 0 ? distance : 0), tz = before[2] + (axis === 2 ? distance : 0);
+    let bedTop = before[1];
+    for (let zz = Math.floor(tz - HW); zz <= Math.floor(tz + HW); zz++) for (let xx = Math.floor(tx - HW); xx <= Math.floor(tx + HW); xx++) {
+      const yy = Math.floor(before[1]), id = world.getBlock(xx, yy, zz);
+      if (isBedBlock(id)) bedTop = Math.max(bedTop, yy + 9 / 16 + .001);
+    }
+    if (bedTop > before[1] && bedTop - before[1] <= .6 && !collides(tx, bedTop, tz)) { p[0] = tx; p[1] = bedTop; p[2] = tz; v[axis] = velocity; }
+  };
+  moveHorizontal(0); if (guard(0)) { p[0] = ox; v[0] = 0; }
+  moveHorizontal(2); if (guard(2)) { p[2] = oz; v[2] = 0; }
   const vy0 = v[1];
   const hitY = stepAxis(1, v[1] * dt);
   P.onGround = hitY && vy0 < 0;
@@ -261,6 +272,7 @@ function spawnParticles(x, y, z, id) {
 function breakBlock() {
   if (!target) return;
   const { x, y, z, id } = target;
+  if (isBedBlock(id)) { breakBed(x, y, z); return; }
   if (isSurvival() && id === B.BEDROCK) return;
   if (isSurvival() && harvestable(id, hotbar[sel])) addItem(blockDrop(id));
   if (isSurvival() && id === B.SNOWGRASS && ITEMS[hotbar[sel]]?.tool === 'shovel') addItem(B.SNOW);
@@ -278,6 +290,7 @@ function remeshAt(x, z) {
   if (c && c.dirty && world.canMesh(c)) { c.dirty = false; uploadChunk(c, world.meshChunk(c)); }
 }
 function placeBlock() {
+  if (target && isBedBlock(target.id) && !player.sneak) { useBed(target); return; }
   if (useHeldItem()) return;
   if (!target) return;
   const id = hotbar[sel];
@@ -295,7 +308,7 @@ function placeBlock() {
   }
   if (CROSS[id]) {
     const below = world.getBlock(x, y - 1, z);
-    if (id === B.TORCH ? !SOLID[below] : below !== B.GRASS && below !== B.DIRT && below !== B.SNOWGRASS) return;
+    if (id === B.TORCH ? !SOLID[below] || isBedBlock(below) : below !== B.GRASS && below !== B.DIRT && below !== B.SNOWGRASS) return;
   }
   world.setBlock(x, y, z, id);
   spendItem(id);
@@ -306,7 +319,7 @@ function placeBlock() {
 }
 function pickBlock() {
   if (!target) return;
-  const id = target.id;
+  const id = isBedBlock(target.id) ? I.BED : target.id;
   if (isSurvival() && !countItem(id)) { toast('背包中没有' + NAMES[id]); return; }
   const ex = hotbar.indexOf(id);
   if (ex >= 0) sel = ex; else hotbar[sel] = id;
@@ -421,6 +434,7 @@ function drawWorld(t) {
     gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.uniformMatrix4fv(progLine.u.uVP, false, vp);
     gl.uniform3f(progLine.u.uOff, target.x, target.y, target.z);
+    gl.uniform3f(progLine.u.uScale, 1, blockHeight(target.id), 1);
     gl.bindVertexArray(lineVAO);
     gl.drawArrays(gl.LINES, 0, 24);
   }
@@ -544,7 +558,9 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000 || 0.016); last = now;
   fpsAcc += dt; fpsN++; if (fpsAcc > 0.5) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
   const active = hasGameFocus();
-  if (active) {
+  if (sleeping.active && !paused && !dead) {
+    updateMobs(dt); world.physics.update(dt); gameTime += dt; updateBedSleep(dt); updateParticles(dt);
+  } else if (active) {
     updateTouchFlight(dt);
     updatePlayer(dt);
     const e = eyePos(), d = lookDir();
@@ -596,7 +612,7 @@ function frame(now) {
 let lastSpace = 0;
 let mouseLookReady = false;
 function applyMouseLook(e) {
-  if (document.pointerLockElement !== canvas || dead || invOpen) return;
+  if (document.pointerLockElement !== canvas || dead || invOpen || sleeping.active) return;
   // Lock acquisition can report the cursor's move to the window centre as input.
   if (!mouseLookReady) { mouseLookReady = true; return; }
   const dx = e.movementX, dy = e.movementY;
@@ -610,6 +626,7 @@ function applyMouseLook(e) {
 document.addEventListener('keydown', (e) => {
   if (!started) return;
   if (document.querySelector('dialog[open]')) return;
+  if (sleeping.active) { if (e.code === 'Escape') { e.preventDefault(); endBedSleep(); } return; }
   if (document.pointerLockElement !== canvas && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) && e.code !== 'Escape') return;
   if (e.code === 'F3') { e.preventDefault(); showDebug = !showDebug; $('debug').style.display = showDebug ? 'block' : 'none'; return; }
   if (e.code === 'KeyE') { e.preventDefault(); if (!e.repeat) setInv(!invOpen); return; }
@@ -644,6 +661,7 @@ canvas.addEventListener('mousedown', (e) => {
   if (document.pointerLockElement !== canvas) { if (!invOpen) canvas.requestPointerLock(); return; }
   e.preventDefault();
   if (dead) return;
+  if (sleeping.active) return;
   if (e.button === 0) { mouseL = true; actTimer = 0; if (mobTarget && !bow.active) attackMob(); }
   else if (e.button === 2) { mouseR = true; placeBlock(); actTimer = 0.25; }
   else if (e.button === 1) pickBlock();
@@ -656,6 +674,7 @@ document.addEventListener('pointerlockchange', () => {
   if (isTouchMode()) return;
   mouseLookReady = false;
   if (sessionBusy) return;
+  if (!locked) endBedSleep();
   if (!locked) { for (const k in keys) keys[k] = false; mouseL = mouseR = false; resetMining(); cancelBow(); }
   if (!locked) stopEnvironmentSounds();
   document.body.classList.toggle('playing', started && !dead);

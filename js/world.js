@@ -114,6 +114,7 @@ class World {
     if (lx === 15 && lz === 15) mark(1, 1);
     this.physics.onEdit(x, y, z, previous, id, level);
     this.lighting.onEdit(x, y, z, previous, id);
+    if (isBedBlock(previous) && previous !== id) removeBedPartner(this, x, y, z, previous);
   }
 
   recalcHeight(c, lx, lz) {
@@ -357,6 +358,11 @@ class World {
       const base = px + pz * PW + y * PSTRIDE;
       const id = pad[base];
       if (!id) continue;
+      if (isBedBlock(id)) {
+        const lightValue = lightAt(x, y, z), skylight = sky(px, y + 1, pz);
+        for (const quad of bedGeometry(id)) for (const q of quad) o.v(x + q[0], y + q[1], z + q[2], q[3], q[4], q[5], skylight, lightValue);
+        continue;
+      }
       if (id === B.PORTAL) {
         const portal = portalAt(this, c.cx * 16 + x, y, c.cz * 16 + z);
         const tile = T.PORTAL, tu = (tile & 15) / 16, tv = (tile >> 4) / 16;
@@ -443,7 +449,10 @@ class World {
     let nx = 0, ny = 0, nz = 0, t = 0;
     for (let i = 0; i < 100; i++) {
       const id = this.getBlock(x, y, z);
-      if (id && !LIQ[id] && id !== B.PORTAL) return { x, y, z, nx, ny, nz, id, t };
+      if (isBedBlock(id)) {
+        const hit = bedRayHit(x, y, z, ox, oy, oz, dx, dy, dz, maxDist);
+        if (hit && hit.t >= t - 1e-5 && hit.t <= Math.min(tx, ty, tz, maxDist) + 1e-5) return { x, y, z, id, ...hit };
+      } else if (id && !LIQ[id] && id !== B.PORTAL) return { x, y, z, nx, ny, nz, id, t };
       if (tx < ty && tx < tz) { t = tx; if (t > maxDist) return null; x += sx; tx += tdx; nx = -sx; ny = 0; nz = 0; }
       else if (ty < tz) { t = ty; if (t > maxDist) return null; y += sy; ty += tdy; nx = 0; ny = -sy; nz = 0; }
       else { t = tz; if (t > maxDist) return null; z += sz; tz += tdz; nx = 0; ny = 0; nz = -sz; }

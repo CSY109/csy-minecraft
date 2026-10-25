@@ -6,7 +6,7 @@ let touchStamp = '', lookPointer = null, useLookPointer = null;
 const dpadPointers = new Map(), touchResetters = [];
 function isTouchMode() { return deviceMode === 'mobile'; }
 function isPortraitTouch() { return isTouchMode() && innerHeight > innerWidth; }
-function hasGameFocus() { return started && !sessionBusy && !paused && !dead && !invOpen && (isTouchMode() || document.pointerLockElement === canvas); }
+function hasGameFocus() { return started && !sessionBusy && !paused && !dead && !invOpen && !sleeping.active && (isTouchMode() || document.pointerLockElement === canvas); }
 function touchPosition(e) {
   return isPortraitTouch() ? { x: e.clientY, y: innerWidth - e.clientX } : { x: e.clientX, y: e.clientY };
 }
@@ -28,6 +28,7 @@ function resumeGame() {
   }
 }
 function pauseGame() {
+  endBedSleep();
   resetTouchInput(); paused = true; stopEnvironmentSounds();
   $('menu').style.display = 'flex'; $('play').textContent = '继续游戏'; updateTouchUI();
   if (document.pointerLockElement === canvas) document.exitPointerLock();
@@ -40,7 +41,7 @@ function setDevice(mode) {
   touchStamp = ''; updateOrientation();
 }
 function updateTouchUI() {
-  const stamp = [deviceMode, started, sessionBusy, paused, dead, invOpen, gameMode, player.fly, hotbar[sel], isPortraitTouch()].join(':');
+  const stamp = [deviceMode, started, sessionBusy, paused, dead, invOpen, sleeping.active, gameMode, player.fly, hotbar[sel], isPortraitTouch()].join(':');
   if (stamp === touchStamp) return; touchStamp = stamp;
   $('touchControls').hidden = !isTouchMode() || !hasGameFocus();
   const flying = player.fly && !isSurvival();

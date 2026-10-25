@@ -36,13 +36,13 @@ function installStarterWorld(w, data) {
 // Serializing these definitions avoids a second copy of the terrain rules or imports
 // from a Blob worker, which would be blocked by file-origin restrictions.
 function worldWorkerSource() {
-  const constants = { CS, CH, SEA, PW, PSTRIDE, B, T, BIOME, DIRS, CA, CB, AO_BR, ADJACENT, HORIZONTAL };
+  const constants = { CS, CH, SEA, PW, PSTRIDE, B, T, BIOME, DIRS, CA, CB, AO_BR, ADJACENT, HORIZONTAL, BED_DIRS };
   const arrays = { TOP, BOT, SIDE, OCCL, SOLID, CROSS, LIQ, LBLOCK, LIGHT_EMISSION };
   const source = ['"use strict";'];
   for (const [name, value] of Object.entries(constants)) source.push('const ' + name + '=' + JSON.stringify(value) + ';');
   for (const [name, value] of Object.entries(arrays)) source.push('const ' + name + '=new Uint8Array(' + JSON.stringify(Array.from(value)) + ');');
   source.push('const GRAD3=new Float32Array(' + JSON.stringify(Array.from(GRAD3)) + ');');
-  for (const fn of [mulberry32, hashInt, hash2, hash3, clamp, lerp, smoothstep]) {
+  for (const fn of [mulberry32, hashInt, hash2, hash3, clamp, lerp, smoothstep, isBedBlock, blockHeight, bedGeometry, bedRayHit, removeBedPartner, bedAt]) {
     source.push('const ' + fn.name + '=' + fn.toString() + ';');
   }
   for (const fn of [SimplexNoise, FloatBuf, Chunk, BlockPhysics, BlockLighting, lightOpacity, World, classicBlockTile, generateNetherChunk, portalAt, prepareStarterWorld]) source.push(fn.toString());

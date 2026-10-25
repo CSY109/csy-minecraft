@@ -3,7 +3,7 @@ const LIGHT_EMISSION = new Uint8Array(256);
 LIGHT_EMISSION[B.TORCH] = 14;
 for (const id of [B.GLOWSTONE, B.FIRE, B.LAVA]) LIGHT_EMISSION[id] = 15;
 LIGHT_EMISSION[B.MAGMA] = 3; LIGHT_EMISSION[B.PORTAL] = 11;
-function lightOpacity(id) { return SOLID[id] && id !== B.GLASS && id !== B.LEAVES ? 15 : id === B.WATER || id === B.LEAVES ? 2 : 1; }
+function lightOpacity(id) { return SOLID[id] && !isBedBlock(id) && id !== B.GLASS && id !== B.LEAVES ? 15 : id === B.WATER || id === B.LEAVES ? 2 : 1; }
 
 class BlockLighting {
   constructor(world) { this.world = world; this.cache = new Map(); this.field = null; }

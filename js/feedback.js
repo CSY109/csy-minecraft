@@ -63,11 +63,11 @@ function showHeldName(id) {
 // Multiply the crack sprite into the existing block surface, as in the classic renderer.
 const progCrack = program(`
 layout(location=0) in vec3 aPos; layout(location=1) in vec2 aUV;
-uniform mat4 uVP; uniform vec3 uOff; out vec2 vUV;
-void main(){vUV=aUV;gl_Position=uVP*vec4(aPos+uOff,1.0);}`, `
+uniform mat4 uVP; uniform vec3 uOff; uniform vec3 uScale; out vec2 vUV;
+void main(){vUV=aUV;gl_Position=uVP*vec4(aPos*uScale+uOff,1.0);}`, `
 in vec2 vUV; uniform sampler2D uTex; uniform float uStage; out vec4 o;
 void main(){vec4 c=texture(uTex,vec2((vUV.x+uStage)/10.0,vUV.y));o=vec4(mix(vec3(1.0),c.rgb,c.a),1.0);}`,
-['uVP', 'uOff', 'uTex', 'uStage']);
+['uVP', 'uOff', 'uScale', 'uTex', 'uStage']);
 const crackTexture = gl.createTexture(), crackVAO = gl.createVertexArray(), crackVBO = gl.createBuffer();
 gl.bindVertexArray(crackVAO); gl.bindBuffer(gl.ARRAY_BUFFER, crackVBO);
 const crackVertices = [];
@@ -84,6 +84,7 @@ function drawMiningCracks(matrix) {
   if (world.getBlock(target.x, target.y, target.z) !== target.id) return;
   gl.useProgram(progCrack); gl.uniformMatrix4fv(progCrack.u.uVP, false, matrix);
   gl.uniform3f(progCrack.u.uOff, target.x, target.y, target.z); gl.uniform1f(progCrack.u.uStage, mining.stage); gl.uniform1i(progCrack.u.uTex, 0);
+  gl.uniform3f(progCrack.u.uScale, 1, blockHeight(target.id), 1);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, crackTexture);
   gl.enable(gl.BLEND); gl.blendFunc(gl.DST_COLOR, gl.ZERO); gl.depthMask(false);
   gl.bindVertexArray(crackVAO); gl.drawArrays(gl.TRIANGLES, 0, 36);

@@ -10,7 +10,7 @@ const B = {
   IRON_BLOCK: 23, PUMPKIN: 24, GOLD: 25, DIAMOND: 26, GOLD_BLOCK: 27,
   DIAMOND_BLOCK: 28, WOOL: 29, MOSS: 30, CLAY: 31, OBSIDIAN: 32, WORKBENCH: 33,
   NETHERRACK: 34, SOUL_SAND: 35, NETHER_BRICK: 36, GLOWSTONE: 37, QUARTZ: 38, MAGMA: 39, LAVA: 40, PORTAL: 41,
-  TORCH: 42, FIRE: 43,
+  TORCH: 42, FIRE: 43, BED: 44,
 };
 
 // atlas tile indices
@@ -23,8 +23,27 @@ const T = {
   GOLD_BLOCK: 31, DIAMOND_BLOCK: 32, WOOL: 33, MOSS: 34, CLAY: 35, OBSIDIAN: 36, WORKBENCH: 37,
   PUMPKIN_SIDE: 38, WORKBENCH_SIDE: 39, WORKBENCH_FRONT: 40,
   NETHERRACK: 112, SOUL_SAND: 113, NETHER_BRICK: 114, GLOWSTONE: 115, QUARTZ: 116, MAGMA: 117, LAVA: 118, PORTAL: 119,
-  TORCH: 128, FIRE: 129,
+  TORCH: 128, FIRE: 129, BED_HEAD: 133, BED_FOOT: 134, BED_HEAD_SIDE: 135, BED_FOOT_SIDE: 136,
+  BED_HEAD_END: 137, BED_FOOT_END: 138, BED_LEG: 139, BED_BOTTOM: 140,
 };
+const BED_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+function isBedBlock(id) { return id >= B.BED && id < B.BED + 8; }
+function blockHeight(id) { return isBedBlock(id) ? 9 / 16 : 1; }
+function removeBedPartner(w, x, y, z, id) {
+  const part = id - B.BED, [dx, dz] = BED_DIRS[part & 3], sign = part >= 4 ? -1 : 1;
+  const expected = B.BED + (part & 3) + (part >= 4 ? 0 : 4);
+  if (w.getBlock(x + dx * sign, y, z + dz * sign) === expected) w.setBlock(x + dx * sign, y, z + dz * sign, B.AIR);
+}
+function bedAt(w, x, y, z) {
+  const id = w.getBlock(x, y, z); if (!isBedBlock(id)) return false;
+  const part = id - B.BED, dir = part & 3, [dx, dz] = BED_DIRS[dir];
+  if (part >= 4) { x -= dx; z -= dz; }
+  const hx = x + dx, hz = z + dz;
+  if (!w.getChunk(x >> 4, z >> 4)?.gen || !w.getChunk(hx >> 4, hz >> 4)?.gen) return null;
+  if (w.getBlock(x, y, z) !== B.BED + dir || w.getBlock(hx, y, hz) !== B.BED + 4 + dir) return false;
+  for (const [xx, zz] of [[x, z], [hx, hz]]) { const below = w.getBlock(xx, y - 1, zz); if (!SOLID[below] || isBedBlock(below)) return false; }
+  return { x, y, z, dir, hx, hz };
+}
 
 const NAMES = [];
 const OCCL = new Uint8Array(256);   // fully opaque cube (occludes neighbours)
@@ -86,8 +105,48 @@ defBlock(B.LAVA, '熔岩', T.LAVA, T.LAVA, T.LAVA, { liquid: true });
 defBlock(B.PORTAL, '下界传送门', T.PORTAL, T.PORTAL, T.PORTAL, { cutout: true, nonSolid: true });
 defBlock(B.TORCH, '火把', T.TORCH, T.TORCH, T.TORCH, { cross: true });
 defBlock(B.FIRE, '火', T.FIRE, T.FIRE, T.FIRE, { cross: true });
+for (let i = 0; i < 8; i++) defBlock(B.BED + i, '红色床', i < 4 ? T.BED_FOOT : T.BED_HEAD, T.BED_BOTTOM,
+  i < 4 ? T.BED_FOOT_SIDE : T.BED_HEAD_SIDE, { cutout: true });
 const INVENTORY_BLOCKS = [];
-for (let i = 1; i < NAMES.length; i++) if (i !== B.PORTAL && i !== B.FIRE) INVENTORY_BLOCKS.push(i);
+for (let i = 1; i < NAMES.length; i++) if (i !== B.PORTAL && i !== B.FIRE && !isBedBlock(i)) INVENTORY_BLOCKS.push(i);
+
+// Each quad uses four vertices, just like the terrain mesher. Canonical north
+// points towards the pillow; rotation is encoded in the block ID and survives saves.
+function bedGeometry(id) {
+  const part = id - B.BED, head = part >= 4, angle = (part & 3) * Math.PI / 2, co = Math.cos(angle), si = Math.sin(angle), faces = [];
+  const box = (pos, size, mattress = false) => {
+    for (let face = 0; face < 6; face++) {
+      if (mattress && face === (head ? 2 : 3)) continue;
+      const D = DIRS[face], tile = !mattress ? T.BED_LEG : face === 4 ? head ? T.BED_HEAD : T.BED_FOOT : face === 5 ? T.BED_BOTTOM :
+        face < 2 ? head ? T.BED_HEAD_SIDE : T.BED_FOOT_SIDE : head ? T.BED_HEAD_END : T.BED_FOOT_END;
+      const tw = mattress ? 16 : 3, th = mattress ? face >= 4 ? 16 : 6 : 3, quad = [];
+      const nx = D.n[0] * co - D.n[2] * si, nz = D.n[0] * si + D.n[2] * co;
+      const shade = D.n[1] ? D.shade : Math.abs(nx) > .5 ? .8 : .66;
+      for (let k = 0; k < 4; k++) {
+        const a = CA[k], b = CB[k], lx = pos[0] + (D.o[0] + D.u[0] * a + D.v[0] * b) * size[0] - .5;
+        const lz = pos[2] + (D.o[2] + D.u[2] * a + D.v[2] * b) * size[2] - .5;
+        const u = mattress && face === 0 ? 1 - a : a;
+        quad.push([.5 + lx * co - lz * si, pos[1] + (D.o[1] + D.u[1] * a + D.v[1] * b) * size[1], .5 + lx * si + lz * co,
+          (tile & 15) / 16 + (.01 + u * (tw - .02)) / 256, (tile >> 4) / 16 + (.01 + (1 - b) * (th - .02)) / 256, shade]);
+      }
+      faces.push(quad);
+    }
+  };
+  box([0, 3 / 16, 0], [1, 6 / 16, 1], true);
+  for (const x of [0, 13 / 16]) box([x, 0, head ? 0 : 13 / 16], [3 / 16, 3 / 16, 3 / 16]);
+  return faces;
+}
+function bedRayHit(x, y, z, ox, oy, oz, dx, dy, dz, reach) {
+  let near = 0, far = reach, normal = [0, 0, 0];
+  const lo = [x, y, z], hi = [x + 1, y + 9 / 16, z + 1], origin = [ox, oy, oz], dir = [dx, dy, dz];
+  for (let a = 0; a < 3; a++) {
+    if (Math.abs(dir[a]) < 1e-9) { if (origin[a] < lo[a] || origin[a] > hi[a]) return null; continue; }
+    const t1 = (lo[a] - origin[a]) / dir[a], t2 = (hi[a] - origin[a]) / dir[a], entry = Math.min(t1, t2);
+    if (entry > near) { near = entry; normal = [0, 0, 0]; normal[a] = dir[a] > 0 ? -1 : 1; }
+    far = Math.min(far, Math.max(t1, t2)); if (near > far) return null;
+  }
+  return { t: near, nx: normal[0], ny: normal[1], nz: normal[2] };
+}
 
 // ---------------- texture painting ----------------
 function makeAtlas() {

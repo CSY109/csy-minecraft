@@ -22,6 +22,7 @@ function spendItem(id, count = 1) {
   bag[id] -= count; inventoryStamp = ''; refreshHotbar(); return true;
 }
 function initSurvival() {
+  bedRespawn = null; resetBedSleep();
   gameMode = $('mode').value; $('mode').disabled = false; $('seed').disabled = true;
   selectedArrow = I.ARROW; cancelBow();
   for (const key of Object.keys(bag)) delete bag[key];
@@ -35,6 +36,7 @@ function initSurvival() {
 }
 function switchGameMode(next) {
   if (!['survival', 'creative'].includes(next) || next === gameMode || dead) return;
+  endBedSleep();
   modeHotbars[gameMode] = hotbar.slice();
   gameMode = next; $('mode').value = next;
   hotbar.splice(0, 9, ...modeHotbars[next]);
@@ -92,11 +94,12 @@ function resetVitals() {
 }
 function damagePlayer(amount, cause = '受伤', cooldown = 0.75) {
   if (!isSurvival() || dead || vitals.invulnerable > 0 || amount <= 0) return;
+  endBedSleep();
   vitals.health = Math.max(0, vitals.health - amount); vitals.invulnerable = cooldown;
   gameSound(cause === '溺水' ? 'drown' : ['熔岩', '岩浆块', '火焰', '燃烧'].includes(cause) ? 'burn' : 'hurt'); $('damage').style.opacity = 0.65;
   if (vitals.health <= 0) {
     dead = true; mouseL = mouseR = false; resetMining(); cancelBow();
-    $('deathCause').textContent = cause + '。背包物品保留，重生回到出生点。';
+    $('deathCause').textContent = cause + '。背包物品保留，重生回到床或世界出生点。';
     if (invOpen) { invOpen = false; $('inv').style.display = 'none'; }
     document.exitPointerLock(); $('menu').style.display = 'none'; $('death').hidden = false;
   }
@@ -105,10 +108,11 @@ function respawnPlayer() {
   returnToOverworld();
   const [x, , z] = spawnPoint;
   for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) world.generate((Math.floor(x) >> 4) + dx, (Math.floor(z) >> 4) + dz);
-  player.p = [x, world.surfaceY(Math.floor(x), Math.floor(z)) + 1.01, z];
+  player.p = bedRespawnPosition() || [x, world.surfaceY(Math.floor(x), Math.floor(z)) + 1.01, z];
   player.v = [0, 0, 0]; player.fly = false; player.onGround = false;
   resetVitals(); vitals.invulnerable = 3; vitals.fallTop = player.p[1];
   resumeGame();
+  queueGameSave();
 }
 function updateVitals(dt) {
   vitals.invulnerable = Math.max(0, vitals.invulnerable - dt);
@@ -199,6 +203,7 @@ function renderInventory(force = false) {
 function useHeldItem() {
   const id = hotbar[sel], item = ITEMS[id];
   if (isSurvival() && !countItem(id)) return false;
+  if (item?.bed) return placeBed();
   if (item?.ammo) { if (selectedArrow !== id) selectArrow(id); return true; }
   if (item?.action) return useWorldTool(id);
   if (item?.food) {

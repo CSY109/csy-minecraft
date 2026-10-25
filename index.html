@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#263f2b">
 <meta name="description" content="csy's Minecraft — 打开即玩的方块世界，支持电脑与手机。">
-<meta name="game-version" content="20261025-saves-bow">
+<meta name="game-version" content="20261025-bed">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:"Courier New",monospace;user-select:none;color:#fff}
@@ -38,7 +38,7 @@
   #invgrid .slot{cursor:pointer;background:#8b8b8b}
   #invgrid .slot:hover{background:#fff8}
 </style>
-<link rel="stylesheet" href="game.css?v=20261025-saves-bow">
+<link rel="stylesheet" href="game.css?v=20261025-bed">
 </head>
 <body>
 <div id="gameViewport">
@@ -52,11 +52,13 @@
 <div id="damage"></div>
 <canvas id="fireOverlay" hidden aria-hidden="true"></canvas>
 <div id="portalOverlay"></div>
+<div id="sleepOverlay" hidden><div id="sleepShade"></div><button id="leaveBed">离开床</button></div>
 <div id="inv"><div id="invbox">
   <div class="inventoryHead"><h3 id="invTitle">背包与合成</h3><button id="closeInv" aria-label="关闭背包">×</button></div>
   <div class="inventoryTools"><div class="tabs"><button data-tab="all" class="active">全部</button><button data-tab="bag">物品</button><button data-tab="craft">合成</button></div><input id="invSearch" type="search" placeholder="搜索物品 / 配方" aria-label="搜索物品或配方"></div>
   <div id="inventoryContent"><div id="invgrid"></div><div id="recipes"></div></div>
   <details id="inventoryGuide"><summary>操作与合成帮助</summary><p id="invHint"></p><p>工具需要附近 4 格内有已放置的工作台；冶炼配方直接消耗煤炭。石镐可采铁，铁镐可采金和钻石，钻石镐可采黑曜石。等级不足时没有掉落。</p>
+  <details><summary>床与睡觉</summary><p>工作台附近用 3 羊毛 + 3 木板合成红色床，需要两格空地和下方支撑。电脑右键床，手机对准床按方块键；白天可设置重生点，夜晚躺下约 5 秒后跳到早晨，可点「离开床」取消。生存模式附近有怪物时不能入睡。床被破坏或周围没有安全位置时，重生会回到世界出生点。下界使用床会爆炸。床和重生点都会保存。</p></details>
   <details><summary>弓与爆炸箭</summary><p>手持弓按住右键蓄力，松开发射；按 R 切换普通箭 / 爆炸箭，也可手持弓打开背包，点击所需箭种。爆炸箭命中后在 5×5×5 范围内爆炸，造成固定 20 点伤害（10 颗心），近距离也会伤到自己；基岩、黑曜石与液体保留。</p><p>4 支普通箭 + 1 份火药 → 4 支爆炸箭。击败苦力怕可获得火药。创造物品栏可以直接选择爆炸箭，创造模式不消耗弹药。</p></details>
   <details><summary>水流与下界传送门</summary><p>铁桶右键取水源，再右键倒水。沙子、沙砾失去支撑会下落。水接触熔岩源可生成黑曜石。</p><p>用黑曜石搭外宽 4、外高 5 的竖直门框，内部 2×3 留空，四个角可省略。手持打火石右键点燃门框内侧，站在紫色门中传送；生存模式需等待 4 秒。下界会生成返回门，熔岩会造成伤害，水在下界会蒸发。</p><p>打火石由 1 铁锭和 1 燧石合成，挖沙砾有机会获得燧石；铁桶由 3 铁锭在工作台附近制作。</p></details>
   <details id="golemGuide"><summary>傀儡搭建</summary><div class="golemPatterns"><div><strong>铁傀儡</strong><pre>    南瓜
@@ -117,24 +119,25 @@
 </div>
 </div>
 <script src="js/util.js"></script>
-<script src="assets/classic-textures.js"></script>
-<script src="js/blocks.js"></script>
-<script src="js/items.js"></script>
-<script src="js/textures.js"></script>
-<script src="js/lighting.js"></script>
-<script src="js/world.js"></script>
-<script src="js/physics.js"></script>
-<script src="js/render.js?v=20261025-fast-flight"></script>
+<script src="assets/classic-textures.js?v=20261025-bed"></script>
+<script src="js/blocks.js?v=20261025-bed"></script>
+<script src="js/items.js?v=20261025-bed"></script>
+<script src="js/textures.js?v=20261025-bed"></script>
+<script src="js/lighting.js?v=20261025-bed"></script>
+<script src="js/world.js?v=20261025-bed"></script>
+<script src="js/physics.js?v=20261025-bed"></script>
+<script src="js/render.js?v=20261025-bed"></script>
 <script src="js/audio.js?v=20261025-fast-flight"></script>
 <script src="js/hazards.js?v=20261025-landscape-fire"></script>
-<script src="js/survival.js?v=20261025-saves-bow"></script>
-<script src="js/mobs.js?v=20261025-landscape-fire"></script>
+<script src="js/survival.js?v=20261025-bed"></script>
+<script src="js/mobs.js?v=20261025-bed"></script>
 <script src="js/mob-render.js?v=20261025-landscape-fire"></script>
-<script src="js/feedback.js?v=20261025-webview-landscape"></script>
+<script src="js/feedback.js?v=20261025-bed"></script>
 <script src="js/dimensions.js"></script>
-<script src="js/world-jobs.js?v=20261025-saves-bow"></script>
-<script src="js/main.js?v=20261025-saves-bow"></script>
-<script src="js/interface.js?v=20261025-saves-bow"></script>
-<script src="js/saves.js?v=20261025-saves-bow"></script>
+<script src="js/world-jobs.js?v=20261025-bed"></script>
+<script src="js/main.js?v=20261025-bed"></script>
+<script src="js/beds.js?v=20261025-bed"></script>
+<script src="js/interface.js?v=20261025-bed"></script>
+<script src="js/saves.js?v=20261025-bed"></script>
 </body>
 </html>

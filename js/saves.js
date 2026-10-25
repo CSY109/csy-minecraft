@@ -66,9 +66,10 @@ function captureGameSave(slot = activeSaveSlot) {
         invalid: p.invalid, link: portalKeys.get(p.link) || null })),
       mobs: state.mobs.map(m => ({ ...m })) });
   }
+  const standing = standingSleepPlayer();
   return { version: SAVE_VERSION, slot, savedAt: Date.now(), seed: world.seed, mode: gameMode, dimension: world.dimension,
-    worlds, player: { ...player, p: player.p.slice(), v: player.v.slice() }, spawnPoint: spawnPoint.slice(),
-    bag: { ...bag }, vitals: { ...vitals }, dead, deathCause: $('deathCause').textContent, gameTime, timeScale, sel, selectedArrow,
+    worlds, player: { ...standing, p: standing.p.slice(), v: standing.v.slice() }, spawnPoint: spawnPoint.slice(), bedRespawn: bedRespawn ? { ...bedRespawn } : null,
+    bag: { ...bag }, vitals: { ...vitals, fallTop: sleeping.active ? standing.p[1] : vitals.fallTop }, dead, deathCause: $('deathCause').textContent, gameTime, timeScale, sel, selectedArrow,
     hotbars: { survival: (gameMode === 'survival' ? hotbar : modeHotbars.survival).slice(),
       creative: (gameMode === 'creative' ? hotbar : modeHotbars.creative).slice() },
     projectiles: projectiles.map(p => ({ ...p, p: p.p.slice(), v: p.v.slice(), owner: null, ownerId: p.owner?.id ?? null })) };
@@ -98,6 +99,7 @@ function validateGameSave(record) {
     if (!(c.blocks instanceof Uint8Array) || c.blocks.length !== CS * CS * CH || c.hm?.length !== CS * CS) throw new Error('存档地形数据不完整');
 }
 function releaseGameWorld() {
+  resetBedSleep(); bedRespawn = null;
   worldJobs.cancel(); resetTouchInput(); stopEnvironmentSounds();
   const worlds = new Set([...dimensionStates.values()].map(state => state.world)); if (world) worlds.add(world);
   for (const w of worlds) for (const c of w.chunks.values()) freeChunkMesh(c);
@@ -126,7 +128,7 @@ function restoreGameSave(record, mode) {
   mobs.push(...dimensionStates.get(record.dimension).mobs); mobSerial = Math.max(0, ...record.worlds.flatMap(w => w.mobs.map(m => m.id)));
   Object.assign(player, record.player, { p: record.player.p.slice(), v: record.player.v.slice(), sprint: false, sneak: false });
   resetVitals(); Object.assign(vitals, record.vitals); dead = !!record.dead;
-  spawnPoint = record.spawnPoint.slice(); gameTime = record.gameTime; timeScale = record.timeScale;
+  spawnPoint = record.spawnPoint.slice(); bedRespawn = record.bedRespawn ? { ...record.bedRespawn } : null; gameTime = record.gameTime; timeScale = record.timeScale;
   for (const id of Object.keys(bag)) delete bag[id]; Object.assign(bag, record.bag);
   modeHotbars.survival = record.hotbars.survival.slice(); modeHotbars.creative = record.hotbars.creative.slice();
   gameMode = record.mode; hotbar.splice(0, 9, ...record.hotbars[gameMode]); sel = clamp(record.sel, 0, 8); selectedArrow = record.selectedArrow;

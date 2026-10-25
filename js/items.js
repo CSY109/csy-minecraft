@@ -35,6 +35,7 @@ defItem('WATER_BUCKET', '水桶', { action: 'water', color: '#466bd0' });
 defItem('LAVA_BUCKET', '熔岩桶', { action: 'lava', color: '#ed8133' });
 defItem('GUNPOWDER', '火药', { color: '#65605b' });
 defItem('EXPLOSIVE_ARROW', '爆炸箭', { ammo: true, color: '#cd4436' });
+defItem('BED', '红色床', { bed: true, color: '#b82d31' });
 ITEMS[I.ARROW].ammo = true;
 const BLOCK_INFO = {};
 function material(ids, hardness, tool, tier = 0, sound = tool) {
@@ -58,6 +59,7 @@ material([B.SOUL_SAND], 0.8, 'shovel', 0, 'earth');
 material([B.NETHER_BRICK, B.QUARTZ, B.MAGMA], 2.6, 'pick', 1, 'stone');
 material([B.GLOWSTONE], 0.5, '', 0, 'glass');
 material([B.TORCH, B.FIRE], 0.05, '', 0, 'wood');
+material(Array.from({ length: 8 }, (_, i) => B.BED + i), .2, 'axe', 0, 'wood');
 function miningSeconds(id, held) {
   const b = BLOCK_INFO[id] || { hardness: 1, tool: '' }, item = ITEMS[held];
   let seconds = b.hardness;
@@ -82,6 +84,7 @@ recipe(B.PLANKS, 4, [[B.LOG, 1]]);
 recipe(I.STICK, 4, [[B.PLANKS, 2]]);
 recipe(B.TORCH, 4, [[I.STICK, 1], [I.COAL, 1]]);
 recipe(B.WORKBENCH, 1, [[B.PLANKS, 4]]);
+recipe(I.BED, 1, [[B.WOOL, 3], [B.PLANKS, 3]], true, '家具');
 recipe(I.INGOT, 1, [[I.RAW_IRON, 1], [I.COAL, 1]], false, '冶炼');
 recipe(I.COOKED, 3, [[I.MEAT, 3], [I.COAL, 1]], false, '冶炼');
 recipe(B.GLASS, 4, [[B.SAND, 4], [I.COAL, 1]], false, '冶炼');

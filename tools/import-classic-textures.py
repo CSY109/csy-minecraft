@@ -33,7 +33,7 @@ items += [m + '_' + t for m in ['wood', 'stone', 'iron', 'diamond'] for t in ['p
 items += ['flint', 'flint_and_steel', 'bucket_empty', 'bucket_water', 'bucket_lava', 'gunpowder']
 entities = {'pig': 'pig/pig', 'cow': 'cow/cow', 'sheep': 'sheep/sheep', 'sheep_fur': 'sheep/sheep_fur',
             'zombie': 'zombie/zombie', 'spider': 'spider/spider', 'creeper': 'creeper/creeper',
-            'iron_golem': 'iron_golem', 'snow_golem': 'snowman'}
+            'iron_golem': 'iron_golem', 'snow_golem': 'snowman', 'bed_red': 'bed/red'}
 blocks = ['iron_block', 'gold_block', 'diamond_block', 'gold_ore', 'diamond_ore',
           'wool_colored_white', 'cobblestone_mossy', 'clay', 'obsidian', 'pumpkin_face_off',
           'pumpkin_side', 'pumpkin_top', 'crafting_table_top', 'crafting_table_side', 'crafting_table_front']

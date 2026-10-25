@@ -89,6 +89,7 @@
     "block_torch_on",
     "block_fire_layer_0",
     "gui_icons",
-    "gui_widgets"
+    "gui_widgets",
+    "entity_bed_red"
   ]
 }

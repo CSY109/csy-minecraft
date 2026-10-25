@@ -100,9 +100,9 @@ void main(){ float a=texture(uTex,vUV).a; if(a<0.5) discard;
   o=vec4(col,0.82*(1.0-smoothstep(500.0,2800.0,vD))); }`, ['uVP', 'uCenter', 'uY', 'uScroll', 'uTex', 'uDayF']);
 
 const progLine = program(`
-layout(location=0) in vec3 aPos; uniform mat4 uVP; uniform vec3 uOff;
-void main(){ gl_Position=uVP*vec4(aPos+uOff,1.0); gl_Position.z-=0.0004; }`, `
-out vec4 o; void main(){ o=vec4(0.0,0.0,0.0,0.7); }`, ['uVP', 'uOff']);
+layout(location=0) in vec3 aPos; uniform mat4 uVP; uniform vec3 uOff; uniform vec3 uScale;
+void main(){ gl_Position=uVP*vec4(aPos*uScale+uOff,1.0); gl_Position.z-=0.0004; }`, `
+out vec4 o; void main(){ o=vec4(0.0,0.0,0.0,0.7); }`, ['uVP', 'uOff', 'uScale']);
 
 const progPart = program(`
 layout(location=0) in vec3 aPos; layout(location=1) in vec2 aUV; layout(location=2) in float aSize;
@@ -189,7 +189,10 @@ function uploadChunk(c, data) {
 function buildBlockMesh(id, itemTile = TOP[id]) {
   const buf = new FloatBuf(512);
   if (!id) return null;
-  if (ITEMS[id]) {
+  if (id === I.BED) {
+    for (const [part, offset] of [[B.BED + 4, 0], [B.BED, 1]]) for (const quad of bedGeometry(part))
+      for (const q of quad) buf.v(q[0] * .6, q[1] * .6, (q[2] + offset) * .6, q[3], q[4], q[5], 1);
+  } else if (ITEMS[id]) {
     const tile = itemTile, tu = (tile & 15) / 16, tv = (tile >> 4) / 16;
     for (const [indices, z] of [[[0, 1, 2, 3], 0.53125], [[3, 2, 1, 0], 0.46875]]) {
       const points = [[0, 0], [1, 0], [1, 1], [0, 1]];

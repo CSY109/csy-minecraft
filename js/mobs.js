@@ -23,7 +23,9 @@ function mobCollides(m, x, y, z) {
   const d = MOB_TYPES[m.type], r = d.width / 2;
   for (let yy = Math.floor(y); yy <= Math.floor(y + d.height - 0.001); yy++)
     for (let zz = Math.floor(z - r); zz <= Math.floor(z + r); zz++)
-      for (let xx = Math.floor(x - r); xx <= Math.floor(x + r); xx++) if (SOLID[world.getBlock(xx, yy, zz)]) return true;
+      for (let xx = Math.floor(x - r); xx <= Math.floor(x + r); xx++) {
+        const id = world.getBlock(xx, yy, zz); if (SOLID[id] && y < yy + blockHeight(id) - 1e-5) return true;
+      }
   return false;
 }
 function naturalSpawn(initial = false) {
@@ -131,7 +133,7 @@ function updateProjectiles(dt) {
     if (p.life <= 0) projectiles.splice(i, 1);
   }
 }
-function explodeArrow(cx, cy, cz) {
+function explodeArrow(cx, cy, cz, cause = '爆炸箭') {
   const min = [cx - 2, cy - 2, cz - 2], max = [cx + 3, cy + 3, cz + 3];
   const intersects = (a, b) => a.every((v, i) => v < max[i] && b[i] > min[i]);
   // One fixed 20-point blast; the direct hit does not add a second damage event.
@@ -141,7 +143,7 @@ function explodeArrow(cx, cy, cz) {
       damageMob(m, 20, [cx + 0.5, cy + 0.5, cz + 0.5]);
   }
   if (intersects([player.p[0] - HW, player.p[1], player.p[2] - HW], [player.p[0] + HW, player.p[1] + PH, player.p[2] + HW]))
-    damagePlayer(20, '爆炸箭');
+    damagePlayer(20, cause);
   for (let y = cy - 2; y <= cy + 2; y++) for (let z = cz - 2; z <= cz + 2; z++) for (let x = cx - 2; x <= cx + 2; x++) {
     const id = world.getBlock(x, y, z);
     if (!id || LIQ[id] || [B.BEDROCK, B.OBSIDIAN, B.PORTAL].includes(id)) continue;
